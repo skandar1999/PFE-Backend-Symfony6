@@ -24,7 +24,7 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
             $user = $userRepository->findOneBy(['email' => $data['email']]);
 
             if (!$user) {
-                return $this->json(['error' => sprintf('User with username "%s" not found.',  $data['email'] )], 404);
+                return $this->json(['error' => sprintf('Adresse email n\'existe pas.',  $data['email'] )], 404);
             }
             $entityManager = $doctrine->getManager();
 
@@ -37,9 +37,14 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
             $email = (new Email())
                 ->from('sabriskandar5@gmail.com')
                 ->to($data['email'])
-                ->subject('Reset Password email')
-                ->text('Votre Nouvelle mot de passe est: '.$password);
-    
+                ->subject('Réinitialisation du mot de passe')
+                ->html('<p>Bonjour,</p>
+                        <p>Nous avons récemment mis à jour nos systèmes de sécurité et, pour garantir la sécurité de votre compte, nous avons généré un nouveau mot de passe pour vous.</p>
+                        <p>Votre nouveau mot de passe est : <strong>' . $password . '</strong></p>
+                        <p>Veuillez noter que ce mot de passe est sensible à la casse et doit être saisi exactement tel qu\'il apparaît ci-dessus lors de votre prochaine connexion à notre service. Nous vous recommandons également de changer ce mot de passe dès que possible pour un mot de passe que vous seul connaissez.</p>
+                        <p>Cordialement,<br>L\'équipe de sécurité</p><a href="http://localhost:4200/login" style="display:inline-block; background-color: #fb5c42; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Aller sur notre site web</a>
+                        ');
+            
             $mailer->send($email);
     
             return $this->json("Sent", 200);

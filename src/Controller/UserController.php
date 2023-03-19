@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\User;
+use Symfony\Component\Mime\Email;
 use App\Repository\UserRepository;
 use Symfony\Component\Mime\Address;
 use Doctrine\ORM\EntityManagerInterface;
@@ -11,13 +12,14 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\Security\Core\Security;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\Routing\Annotation\Route;
 
-use Symfony\Component\Mime\Email;
+use Symfony\Component\Routing\Annotation\Route;
 
 use Symfony\Component\Mailer\Header\AddressList;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 
@@ -165,8 +167,7 @@ public function findUser(string $email, UserRepository $userRepository): JsonRes
         'email' => $user->getEmail(),
         'roles' => $user->getRoles(),
         'mobile' => $user->getMobile(),
-
-        'password' => $user->getPassword(),
+        'image' => $user->getImage(),
 
     ]);
 }
@@ -189,8 +190,6 @@ public function findUserById(int $id, UserRepository $userRepository): JsonRespo
         'password' => $user->getPassword(),
     ]);
 }
-
-
 
 
 #[Route('/updateUser/{email}', name: 'user_update', methods: ['PUT', 'PATCH'])]
@@ -219,18 +218,114 @@ public function update(Request $request, ManagerRegistry $doctrine, string $emai
         $user->setPassword(sha1($data['password']));
     }
 
+    
+    
+
     $entityManager->flush();
 
-    return $this->json(['message' => 'User updated with succesfully ', 'data' => $data]);
+    return $this->json(['message' => 'User updated with success', 'data' => [
+        'id' => $user->getId(),
+        'email' => $user->getEmail(),
+        'username' => $user->getUsername(),
+        'mobile' => $user->getMobile(),
+        'password' => $user->getpassword(),
+        'roles' => $user->getRoles(),
+
+    ]]);
 }
 
 
 
+
+
+
+
+
+#[Route('/updateRole/{id}', name: 'Roles-update', methods: ['PUT', 'PATCH'])]
+public function updateRoles(Request $request, ManagerRegistry $doctrine, int $id): Response
+{
+    $entityManager = $doctrine->getManager();
+    $user = $entityManager->getRepository(User::class)->findOneBy(['id' => $id]);
+    
+    if (!$user) {
+        return $this->json(['message' => 'User not found'], 404);
+    }
+    
+    $user->setRoles(['ADMIN']);
+    $entityManager->flush();
+
+    return $this->json([
+        'message' => 'User updated with success',
+        'data' => [
+            'roles' => $user->getRoles(),
+        ]
+    ]);
+}
+
+
+#[Route('/removeRole/{id}', name: 'Roles-remove', methods: ['PUT', 'PATCH'])]
+public function removeRole(Request $request, ManagerRegistry $doctrine, int $id): Response
+{
+    $entityManager = $doctrine->getManager();
+    $user = $entityManager->getRepository(User::class)->findOneBy(['id' => $id]);
+    
+    if (!$user) {
+        return $this->json(['message' => 'User not found'], 404);
+    }
+    
+    $roles = $user->getRoles();
+    $key = array_search('ADMIN', $roles);
+    if ($key !== false) {
+        unset($roles[$key]);
+    }
+    $user->setRoles($roles);
+    $entityManager->flush();
+
+    return $this->json([
+        'message' => 'User updated with success',
+        'data' => [
+            'roles' => $user->getRoles(true),
+        ]
+    ]);
+}
+
+
+
+
+
+
+/*
+#[Route('/users/{email}/image', name: 'update_user_image', methods: ['PUT', 'PATCH'])]
+public function updateUserImage(Request $request, EntityManagerInterface $entityManager, string $email, FileUploader $fileUploader): JsonResponse
+{
+    $user = $entityManager->getRepository(User::class)->findOneBy(['email' => $email]);
+
+    if (!$user) {
+        throw $this->createNotFoundException('User not found');
+    }
+
+    $imageFile = $request->files->get('image');
+
+    if (!$imageFile) {
+        throw new BadRequestHttpException('No image uploaded');
+    }
+
+    $fileName = $fileUploader->upload($imageFile);
+    $user->setImage($fileName);
+
+    $entityManager->flush();
+
+    return new JsonResponse(['message' => 'Image uploaded successfully']);
+}
+
+
+*/
 
     
 
-
-
-
-
 }
+
+
+
+
+
