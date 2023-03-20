@@ -3,31 +3,23 @@
 namespace App\Controller;
 
 use App\Entity\User;
-use Symfony\Component\Mime\Email;
 use App\Repository\UserRepository;
-use Symfony\Component\Mime\Address;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Mailer\MailerInterface;
-use Symfony\Component\Security\Core\Security;
 use Symfony\Component\HttpFoundation\Response;
-
 use Symfony\Component\Routing\Annotation\Route;
-
-use Symfony\Component\Mailer\Header\AddressList;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+
 
 
 class UserController extends AbstractController
 {
     private $manager;
-
     private $user;
+
 
     public function __construct(EntityManagerInterface $manager, UserRepository $user)
     {
@@ -42,6 +34,8 @@ class UserController extends AbstractController
     public function userCreate(Request $request): Response
     {
 
+
+
        $data=json_decode($request->getContent(),true);
 
 
@@ -49,7 +43,7 @@ class UserController extends AbstractController
        $username=$data['username'];
        $password=$data['password'];
        $mobile=$data['mobile'];
-
+      
 
        //Vérifier si l'email existe déjà
 
@@ -87,10 +81,10 @@ class UserController extends AbstractController
           $user->setEmail($email)
                 ->setUsername($username)
                 ->setMobile($mobile)
-                ->setPassword(sha1($password));
+                ->setPassword(sha1($password))
+                ->setRoles(['ROLE_USER']);
 
          $this->manager->persist($user);
-   
          $this->manager->flush();
 
          return new JsonResponse
@@ -102,13 +96,7 @@ class UserController extends AbstractController
 
              );
        }
-
-
-
-        
     }
-
-
 
      //Liste des utilisateurs
     #[Route('/getAllUsers', name: 'get_allusers', methods:'GET')]
@@ -135,7 +123,7 @@ class UserController extends AbstractController
         return $this->json('Deleted a user successfully with id ' . $id);
     }
 
-
+     //find  des users par username
 #[Route('/findByUsername/{username}', name: 'getuser', methods: ['GET'])]
 public function findUser2(string $username, UserRepository $userRepository): JsonResponse
 {
@@ -153,6 +141,7 @@ public function findUser2(string $username, UserRepository $userRepository): Jso
     ]);
 }
 
+     //find  des users par email
 #[Route('/findByEmail/{email}', name: 'getuser_email', methods: ['GET'])]
 public function findUser(string $email, UserRepository $userRepository): JsonResponse
 {
@@ -173,6 +162,7 @@ public function findUser(string $email, UserRepository $userRepository): JsonRes
 }
 
 
+     //find  des users par id
 #[Route('/findById/{id}', name: 'getuser', methods: ['GET'])]
 public function findUserById(int $id, UserRepository $userRepository): JsonResponse
 {
@@ -191,7 +181,7 @@ public function findUserById(int $id, UserRepository $userRepository): JsonRespo
     ]);
 }
 
-
+     //update des users profile
 #[Route('/updateUser/{email}', name: 'user_update', methods: ['PUT', 'PATCH'])]
 public function update(Request $request, ManagerRegistry $doctrine, string $email ,UserPasswordHasherInterface $encoder ): Response
 {
@@ -219,8 +209,6 @@ public function update(Request $request, ManagerRegistry $doctrine, string $emai
     }
 
     
-    
-
     $entityManager->flush();
 
     return $this->json(['message' => 'User updated with success', 'data' => [
@@ -235,12 +223,7 @@ public function update(Request $request, ManagerRegistry $doctrine, string $emai
 }
 
 
-
-
-
-
-
-
+     //update les roles comme admin
 #[Route('/updateRole/{id}', name: 'Roles-update', methods: ['PUT', 'PATCH'])]
 public function updateRoles(Request $request, ManagerRegistry $doctrine, int $id): Response
 {
@@ -262,22 +245,26 @@ public function updateRoles(Request $request, ManagerRegistry $doctrine, int $id
     ]);
 }
 
-
-#[Route('/removeRole/{id}', name: 'Roles-remove', methods: ['PUT', 'PATCH'])]
+     //annuler le role admin 
+     #[Route('/removeRole/{id}', name: 'Roles-remove', methods: ['PUT', 'PATCH'])]
 public function removeRole(Request $request, ManagerRegistry $doctrine, int $id): Response
 {
     $entityManager = $doctrine->getManager();
     $user = $entityManager->getRepository(User::class)->findOneBy(['id' => $id]);
-    
+
     if (!$user) {
         return $this->json(['message' => 'User not found'], 404);
     }
-    
+
     $roles = $user->getRoles();
-    $key = array_search('ADMIN', $roles);
-    if ($key !== false) {
+    if (in_array('ADMIN', $roles)) {
+        $key = array_search('ROLE_ADMIN', $roles);
         unset($roles[$key]);
     }
+    
+    // Filter the roles to only include 'ROLE_USER'
+    $roles = ['ROLE_USER'];
+    
     $user->setRoles($roles);
     $entityManager->flush();
 
@@ -288,6 +275,7 @@ public function removeRole(Request $request, ManagerRegistry $doctrine, int $id)
         ]
     ]);
 }
+
 
 
 
@@ -320,12 +308,43 @@ public function updateUserImage(Request $request, EntityManagerInterface $entity
 
 
 */
+#[Route('/users/{id}/image', name: 'update_user_image', methods: ['PUT', 'PATCH'])]
+public function uploadImage(int $id, Request $request, EntityManagerInterface $entityManager): Response
+{
+    // Find the user you want to update
+    $user = $entityManager->getRepository(User::class)->find($id);
 
-    
+    if (!$user) {
+        throw $this->createNotFoundException('User not found');
+    }
 
+    // Get the uploaded image file from the request
+    $imageFile = $request->files->get('image');
+
+    if (!$imageFile) {
+        throw $this->createNotFoundException('Image not found in request');
+    }
+
+    // Set the user's new image
+    $user->setImage($imageFile->getClientOriginalName());
+
+    // Move the uploaded file to the public/uploads directory
+    $imageFile->move(
+        $this->getParameter('images_directory'),
+        $imageFile->getClientOriginalName()
+    );
+
+    // Save the changes to the database
+    $entityManager->flush();
+
+    return new Response('Image uploaded successfully', Response::HTTP_OK);
 }
 
 
 
 
 
+
+
+
+}

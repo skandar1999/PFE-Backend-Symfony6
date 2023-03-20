@@ -21,33 +21,35 @@ class ContactController extends AbstractController
         $this->entityManager = $entityManager;
     }
 
-    #[Route('/contactuser', name: 'contacr_user', methods:'POST')]
+    #[Route('/contactuser', name: 'contact_user', methods:'POST')]
     public function contact(Request $request): JsonResponse
-{
-    // Get the data from the request body
-    $data = json_decode($request->getContent(), true);
-
-    // Check if the emailUser key is set
-    if (!isset($data['emailUser'])) {
-        return new JsonResponse(['error' => 'Missing emailUser'], 400);
+    {
+        // Get the data from the request body
+        $data = json_decode($request->getContent(), true);
+    
+        // Check if the emailUser key is set
+        if (!isset($data['emailUser'])) {
+            return new JsonResponse(['error' => 'Missing emailUser'], 400);
+        }
+    
+        // Create a new Contact object and set its properties
+        $contact = new Contact();
+        $contact->setEmailUser($data['emailUser']);
+        $contact->setDate(new \DateTime());
+    
+        // Check if the description key is set
+        if (isset($data['description'])) {
+            $contact->setDescription($data['description']);
+        }
+    
+        // Persist the contact object to the database
+        $this->entityManager->persist($contact);
+        $this->entityManager->flush();
+    
+        // Return a success message
+        return new JsonResponse(['message' => 'Nous avons bien reçu votre message !']);
     }
-
-    // Create a new Contact object and set its properties
-    $contact = new Contact();
-    $contact->setEmailUser($data['emailUser']);
-
-    // Check if the description key is set
-    if (isset($data['description'])) {
-        $contact->setDescription($data['description']);
-    }
-
-    // Persist the contact object to the database
-    $this->entityManager->persist($contact);
-    $this->entityManager->flush();
-
-    // Return a success message
-    return new JsonResponse(['message' => 'Nous avons bien reçu votre message !']);
-}   
+    
 
 
 
@@ -61,7 +63,9 @@ public function getAllMessages(ContactRepository $contactRepository): JsonRespon
         $response[] = [
             'id' => $contact->getId(),
             'emailUser' => $contact->getEmailUser(),
-            'description' => $contact->getDescription()
+            'description' => $contact->getDescription(),
+            'date' => $contact->getDate() ? $contact->getDate()->format('d-m-y H:i') : null,
+
         ];
     }
 

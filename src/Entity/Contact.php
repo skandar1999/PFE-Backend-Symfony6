@@ -2,8 +2,9 @@
 
 namespace App\Entity;
 
-use App\Repository\ContactRepository;
+use DateTimeInterface;
 use Doctrine\ORM\Mapping as ORM;
+use App\Repository\ContactRepository;
 
 #[ORM\Entity(repositoryClass: ContactRepository::class)]
 class Contact
@@ -18,6 +19,11 @@ class Contact
 
     #[ORM\Column(length: 255)]
     private ?string $description = null;
+
+
+    #[ORM\Column(type: 'datetime')]
+    private ?DateTimeInterface $date = null;
+
 
     public function getId(): ?int
     {
@@ -47,4 +53,18 @@ class Contact
 
         return $this;
     }
+
+
+    public function getDate(): ?\DateTimeInterface
+{
+    return $this->date;
+}
+
+public function setDate(\DateTimeInterface $date): self
+{
+    $this->date = $date;
+
+    return $this;
+}
+
 }
