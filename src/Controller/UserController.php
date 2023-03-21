@@ -8,6 +8,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\File\File;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -82,6 +83,7 @@ class UserController extends AbstractController
                 ->setUsername($username)
                 ->setMobile($mobile)
                 ->setPassword(sha1($password))
+                ->setImage('customer0.jpg')
                 ->setRoles(['ROLE_USER']);
 
          $this->manager->persist($user);
@@ -124,7 +126,7 @@ class UserController extends AbstractController
     }
 
      //find  des users par username
-#[Route('/findByUsername/{username}', name: 'getuser', methods: ['GET'])]
+#[Route('/findByUsername/{username}', name: 'findByusern', methods: ['GET'])]
 public function findUser2(string $username, UserRepository $userRepository): JsonResponse
 {
     $user = $userRepository->findOneBy(['username' => $username]);
@@ -137,6 +139,9 @@ public function findUser2(string $username, UserRepository $userRepository): Jso
         'username' => $user->getUsername(),
         'email' => $user->getEmail(),
         'roles' => $user->getRoles(),
+        'mobile' => $user->getMobile(),
+        'image' => $user->getImage(),
+
         
     ]);
 }
@@ -178,6 +183,8 @@ public function findUserById(int $id, UserRepository $userRepository): JsonRespo
         'email' => $user->getEmail(),
         'roles' => $user->getRoles(),
         'password' => $user->getPassword(),
+        'image' => $user->getImage(),
+
     ]);
 }
 
@@ -278,48 +285,18 @@ public function removeRole(Request $request, ManagerRegistry $doctrine, int $id)
 
 
 
-
-
-
-
-/*
-#[Route('/users/{email}/image', name: 'update_user_image', methods: ['PUT', 'PATCH'])]
-public function updateUserImage(Request $request, EntityManagerInterface $entityManager, string $email, FileUploader $fileUploader): JsonResponse
-{
-    $user = $entityManager->getRepository(User::class)->findOneBy(['email' => $email]);
-
-    if (!$user) {
-        throw $this->createNotFoundException('User not found');
-    }
-
-    $imageFile = $request->files->get('image');
-
-    if (!$imageFile) {
-        throw new BadRequestHttpException('No image uploaded');
-    }
-
-    $fileName = $fileUploader->upload($imageFile);
-    $user->setImage($fileName);
-
-    $entityManager->flush();
-
-    return new JsonResponse(['message' => 'Image uploaded successfully']);
-}
-
-
-*/
-#[Route('/users/{id}/image', name: 'update_user_image', methods: ['PUT', 'PATCH'])]
-public function uploadImage(int $id, Request $request, EntityManagerInterface $entityManager): Response
+     //updateImage de profile
+#[Route('/updateImage/{email}', name: 'update_user_image', methods: ['POST'])]
+public function uploadImage(string $email, Request $request, EntityManagerInterface $entityManager): Response
 {
     // Find the user you want to update
-    $user = $entityManager->getRepository(User::class)->find($id);
-
+    $user = $entityManager->getRepository(User::class)->findOneBy(['email' => $email]);
     if (!$user) {
         throw $this->createNotFoundException('User not found');
     }
 
     // Get the uploaded image file from the request
-    $imageFile = $request->files->get('image');
+    $imageFile = $request->files->get('file');
 
     if (!$imageFile) {
         throw $this->createNotFoundException('Image not found in request');
@@ -347,4 +324,9 @@ public function uploadImage(int $id, Request $request, EntityManagerInterface $e
 
 
 
-}
+    }
+
+
+
+
+
