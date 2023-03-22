@@ -56,7 +56,16 @@ class ContactController extends AbstractController
 #[Route('/getallmessages', name: 'get_all_messages', methods:'GET')]
 public function getAllMessages(ContactRepository $contactRepository): JsonResponse
 {
-    $contacts = $contactRepository->findAll();
+    $startDate = new \DateTime('-1 days'); // Get the date three days ago
+    $endDate = new \DateTime(); // Get the current date
+
+    $contacts = $contactRepository->createQueryBuilder('c')
+        ->andWhere('c.date BETWEEN :startDate AND :endDate')
+        ->setParameter('startDate', $startDate)
+        ->setParameter('endDate', $endDate)
+        ->orderBy('c.date', 'DESC')
+        ->getQuery()
+        ->getResult();
 
     $response = [];
     foreach ($contacts as $contact) {
@@ -65,7 +74,6 @@ public function getAllMessages(ContactRepository $contactRepository): JsonRespon
             'emailUser' => $contact->getEmailUser(),
             'description' => $contact->getDescription(),
             'date' => $contact->getDate() ? $contact->getDate()->format('d-m-y H:i') : null,
-
         ];
     }
 
@@ -90,6 +98,10 @@ public function delete( int $id , EntityManagerInterface $entityManager): Respon
 
     return $this->json('Deleted a messages successfully with id ' . $id);
 }
+
+
+
+
 }
 
         

@@ -28,7 +28,7 @@ use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
             }
             $entityManager = $doctrine->getManager();
 
-            $randomBytes = random_bytes(16);
+            $randomBytes = random_bytes(6);
             $password = bin2hex($randomBytes);
             
             $hashedPassword = $encoder->hashPassword($user, $password);

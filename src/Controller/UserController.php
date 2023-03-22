@@ -100,6 +100,8 @@ class UserController extends AbstractController
        }
     }
 
+
+
      //Liste des utilisateurs
     #[Route('/getAllUsers', name: 'get_allusers', methods:'GET')]
     public function getAllUsers(): Response
@@ -206,16 +208,30 @@ public function update(Request $request, ManagerRegistry $doctrine, string $emai
     }
 
     if (isset($data['username'])) {
+        $existingUser = $entityManager->getRepository(User::class)->findOneBy(['username' => $data['username']]);
+        if ($existingUser && $existingUser !== $user) {
+            return $this->json(['message' => 'Le nom utilisateur que vous avez choisi est déjà pris. Veuillez en choisir un autre.'], 400);
+        }
         $user->setUsername($data['username']);
     }
+    
     if (isset($data['mobile'])) {
-        $user->setMobile($data['mobile']);
+        $mobile = $data['mobile'];
+        if (!preg_match('/^[0-9]{8}$/', $mobile)) {
+            return $this->json(['message' => 'Le numéro de portable doit comporter 8 chiffres sans caractères alphabétiques'], 400);
+        }
+        $user->setMobile($mobile);
     }
+    
+    
     if (isset($data['password'])) {
-        $user->setPassword(sha1($data['password']));
+        $password = $data['password'];
+        if (strlen($password) <= 8) {
+            return $this->json(['message' => 'Le mot de passe doit comporter plus de 8 caractères'], 400);
+        }
+        $user->setPassword($encoder->hashPassword($user, $password));
     }
 
-    
     $entityManager->flush();
 
     return $this->json(['message' => 'User updated with success', 'data' => [
@@ -228,6 +244,9 @@ public function update(Request $request, ManagerRegistry $doctrine, string $emai
 
     ]]);
 }
+
+
+
 
 
      //update les roles comme admin
@@ -319,14 +338,25 @@ public function uploadImage(string $email, Request $request, EntityManagerInterf
 
 
 
+    #[Route('/checkpassword/{email}', name: 'checkpwd', methods:'POST')]
+    public function checkpassword(Request $request, string $email, UserRepository $userRepository): JsonResponse
+{
+    $user = $userRepository->findOneBy(['email' => $email]);
 
-
-
-
-
+    if (!$user) {
+        return $this->json(['error' => sprintf('User with email "%s" not found.', $email)], 404);
     }
 
+    $data = json_decode($request->getContent(), true);
+    $password = $data['password'];
 
+    $hashedPassword = $user->getPassword();
+    if (sha1($password) !== $hashedPassword) {
+        return $this->json(['status' => false, 'message' => 'Incorrect password'], 401);
+    }
 
-
-
+    return $this->json(['status' => true,
+                         'message' => 'Password is correct']);
+}
+    
+}
