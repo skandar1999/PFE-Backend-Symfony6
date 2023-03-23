@@ -35,8 +35,6 @@ class UserController extends AbstractController
     public function userCreate(Request $request): Response
     {
 
-
-
        $data=json_decode($request->getContent(),true);
 
 
@@ -170,7 +168,7 @@ public function findUser(string $email, UserRepository $userRepository): JsonRes
 
 
      //find  des users par id
-#[Route('/findById/{id}', name: 'getuser', methods: ['GET'])]
+#[Route('/findById/{id}', name: 'getuser_id', methods: ['GET'])]
 public function findUserById(int $id, UserRepository $userRepository): JsonResponse
 {
     $user = $userRepository->findOneBy(['id' => $id]);

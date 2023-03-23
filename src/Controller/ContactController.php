@@ -51,8 +51,6 @@ class ContactController extends AbstractController
     }
     
 
-
-
 #[Route('/getallmessages', name: 'get_all_messages', methods:'GET')]
 public function getAllMessages(ContactRepository $contactRepository): JsonResponse
 {
