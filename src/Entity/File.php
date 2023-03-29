@@ -25,8 +25,13 @@ class File
     #[ORM\Column(type: Types::DATE_MUTABLE)]
     private ?\DateTimeInterface $date = null;
 
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $status = false;
+
     #[ORM\ManyToOne]
     private ?User $user = null;
+
+    
 
     public function getId(): ?int
     {
@@ -80,4 +85,17 @@ public function setPath(string $path): self
 
     return $this;
 }
+
+
+public function getStatus(): bool
+{
+    return $this->status;
+}
+
+public function setStatus(bool $status): self
+{
+    $this->status = $status;
+    return $this;
+}
+
 }

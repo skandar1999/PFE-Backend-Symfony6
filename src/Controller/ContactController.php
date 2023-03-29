@@ -54,7 +54,7 @@ class ContactController extends AbstractController
 #[Route('/getallmessages', name: 'get_all_messages', methods:'GET')]
 public function getAllMessages(ContactRepository $contactRepository): JsonResponse
 {
-    $startDate = new \DateTime('-1 days'); // Get the date three days ago
+    $startDate = new \DateTime('-6 days'); // Get the date three days ago
     $endDate = new \DateTime(); // Get the current date
 
     $contacts = $contactRepository->createQueryBuilder('c')
@@ -72,6 +72,7 @@ public function getAllMessages(ContactRepository $contactRepository): JsonRespon
             'emailUser' => $contact->getEmailUser(),
             'description' => $contact->getDescription(),
             'date' => $contact->getDate() ? $contact->getDate()->format('d-m-y H:i') : null,
+            'status' => $contact->getStatus(),
         ];
     }
 
@@ -95,6 +96,26 @@ public function delete( int $id , EntityManagerInterface $entityManager): Respon
     $entityManager->flush();
 
     return $this->json('Deleted a messages successfully with id ' . $id);
+}
+
+
+
+
+#[Route('/updateStatut/{id}', name: 'delete-message', methods:'put')]
+public function update(int $id , EntityManagerInterface $entityManager, Contact $contact): Response
+{   
+
+
+    $message  = $entityManager->getRepository(Contact::class)->find($id);
+
+    if (!$message) {
+        return $this->json('No message found for id' . $id, 404);
+    }
+    $contact->setStatus(true);
+
+    $entityManager->flush();
+
+    return $this->json($contact);
 }
 
 

@@ -20,6 +20,9 @@ class Contact
     #[ORM\Column(length: 255)]
     private ?string $description = null;
 
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $status = false;
+
 
     #[ORM\Column(type: 'datetime')]
     private ?DateTimeInterface $date = null;
@@ -64,6 +67,17 @@ public function setDate(\DateTimeInterface $date): self
 {
     $this->date = $date;
 
+    return $this;
+}
+
+public function getStatus(): bool
+{
+    return $this->status;
+}
+
+public function setStatus(bool $status): self
+{
+    $this->status = $status;
     return $this;
 }
 

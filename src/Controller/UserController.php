@@ -81,7 +81,7 @@ class UserController extends AbstractController
                 ->setUsername($username)
                 ->setMobile($mobile)
                 ->setPassword(sha1($password))
-                ->setImage('customer0.jpg')
+                ->setImage('user.jpg')
                 ->setRoles(['ROLE_USER']);
 
          $this->manager->persist($user);
