@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\Dossier;
+use App\Entity\File;
 use App\Entity\User;
 
 use Doctrine\ORM\EntityManagerInterface;
@@ -65,6 +66,7 @@ public function getUserFiles(string $email, EntityManagerInterface $entityManage
     $responseData = [];
 
     foreach ($dossiers as $dossier) {
+        
         $responseData[] = [
             'id' => $dossier->getId(),
             'user_id' => $dossier->getUser()->getId(),
@@ -102,6 +104,9 @@ public function deleteFile(int $id, EntityManagerInterface $entityManager): Json
 
     return new JsonResponse(['message' => 'Folder deleted successfully']);
 }
+
+
+
 
 
 

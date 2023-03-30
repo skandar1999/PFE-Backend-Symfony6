@@ -25,8 +25,8 @@ class File
     #[ORM\Column(type: Types::DATE_MUTABLE)]
     private ?\DateTimeInterface $date = null;
 
-    #[ORM\Column(type: 'boolean', options: ['default' => false])]
-    private bool $status = false;
+    #[ORM\Column(type: 'boolean', options: ['default' => true])]
+    private bool $status = true;
 
     #[ORM\ManyToOne]
     private ?User $user = null;

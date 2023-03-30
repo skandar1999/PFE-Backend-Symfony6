@@ -54,7 +54,7 @@ class ContactController extends AbstractController
 #[Route('/getallmessages', name: 'get_all_messages', methods:'GET')]
 public function getAllMessages(ContactRepository $contactRepository): JsonResponse
 {
-    $startDate = new \DateTime('-6 days'); // Get the date three days ago
+    $startDate = new \DateTime('-15 days'); // Get the date three days ago
     $endDate = new \DateTime(); // Get the current date
 
     $contacts = $contactRepository->createQueryBuilder('c')

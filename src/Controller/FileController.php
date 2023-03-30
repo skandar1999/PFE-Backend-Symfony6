@@ -4,16 +4,18 @@ namespace App\Controller;
 
 use App\Entity\File;
 use App\Entity\User;
+use Symfony\Component\Mime\Email;
 use App\Repository\FileRepository;
+use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\Mime\Email;
 
 
 class FileController extends AbstractController
@@ -70,6 +72,7 @@ foreach ($files as $file) {
         'name' => $file->getName(),
         'date' => $file->getDate()->format('Y-m-d'),
         'path' => $file->getPath(),
+        'status'=> $file->getStatus(),
     ];
 }
 
@@ -79,28 +82,43 @@ return new JsonResponse($responseData);
  
 
 
-#[Route('/deletefile/{id}', name: 'delete_files', methods: ['DELETE'])]
-
-public function deleteFile(int $id, EntityManagerInterface $entityManager): JsonResponse
+#[Route('/archiver/{id}/{email}', name: 'delete_files', methods: ['PUT'])]
+public function archiverfile(int $id, EntityManagerInterface $entityManager, MailerInterface $mailer, string $email, UserRepository $userRepository): JsonResponse
 {
+    $user = $userRepository->findOneBy(['email' => $email]);
+
+    // Find the user by email
+    if (!$user) {
+        return $this->json(['error' => sprintf('User with username "%s" not found.', $email)], 404);
+    }
+
     $file = $entityManager->getRepository(File::class)->find($id);
 
     if (!$file) {
         throw $this->createNotFoundException('File not found');
     }
 
-    // Remove the file from the server
-    $filePath = $file->getPath();
-    if (file_exists($filePath)) {
-        unlink($filePath);
-    }
-
-    // Remove the file from the database
-    $entityManager->remove($file);
+    // Update the status to false
+    $file->setStatus(false);
+    $entityManager->persist($file);
     $entityManager->flush();
 
-    return new JsonResponse(['message' => 'File deleted successfully']);
+    // Send email to current user
+    $email = (new Email())
+        ->from('sabriskandar5@gmail.com')
+        ->to($email)
+        ->subject('File Archived')
+        ->html('<p>Bonjour,</p>
+        <p>Le fichier <strong>'. $file->getName().'</strong> a été archivé avec succès.</p>
+        <p>Cordialement,</p>
+        <p>L\'équipe de support</p>');
+        
+    $mailer->send($email);
+
+    return new JsonResponse(['message' => 'File status updated to false']);
 }
+
+
 
 
 #[Route('/findbyName/{name}', name: 'findbyname', methods: ['GET'])]
@@ -120,4 +138,28 @@ public function findUser2(string $name, File $fileRepository , EntityManagerInte
     ]);
 }
 
+
+
+#[Route('/deletefilefromarchive/{id}', name: 'delete_files_fromarchive', methods: ['DELETE'])]
+
+public function deletefilefromarchive(int $id, EntityManagerInterface $entityManager): JsonResponse
+{
+    $file = $entityManager->getRepository(File::class)->find($id);
+
+    if (!$file) {
+        throw $this->createNotFoundException('File not found');
+    }
+
+    // Remove the file from the server
+    $filePath = $file->getPath();
+    if (file_exists($filePath)) {
+        unlink($filePath);
+    }
+
+    // Remove the file from the database
+    $entityManager->remove($file);
+    $entityManager->flush();
+
+    return new JsonResponse(['message' => 'File deleted successfully']);
+}
 }
