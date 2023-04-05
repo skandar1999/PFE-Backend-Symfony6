@@ -101,7 +101,7 @@ public function delete( int $id , EntityManagerInterface $entityManager): Respon
 
 
 
-#[Route('/updateStatut/{id}', name: 'delete-message', methods:'put')]
+#[Route('/updateStatut/{id}', name: 'updateStatut-status', methods:'put')]
 public function update(int $id , EntityManagerInterface $entityManager, Contact $contact): Response
 {   
 

@@ -2,10 +2,12 @@
 
 namespace App\Controller;
 
-use App\Entity\Dossier;
 use App\Entity\File;
 use App\Entity\User;
+use App\Entity\Dossier;
 
+use App\Repository\FileRepository;
+use App\Repository\DossierRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\Request;
@@ -106,7 +108,16 @@ public function deleteFile(int $id, EntityManagerInterface $entityManager): Json
 }
 
 
+/*
+#[Route("/folders/{id}", name: "get_files_by_folder_and_file",methods: ['GET'])]
+public function getFilesByFolderAndFile($id, $file_id, FileRepository $fileRepository): JsonResponse
+{
+    $files = $fileRepository->findBy(['folder' => $id, 'id' => $file_id]);
+    // rest of the code to return the file(s)
+    return new JsonResponse([]);
 
+}
+*/
 
 
 

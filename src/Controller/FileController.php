@@ -9,13 +9,17 @@ use App\Repository\FileRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
+use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use finfo;
+
 
 
 class FileController extends AbstractController
@@ -81,7 +85,6 @@ return new JsonResponse($responseData);
 }
  
 
-
 #[Route('/archiver/{id}/{email}', name: 'delete_files', methods: ['PUT'])]
 public function archiverfile(int $id, EntityManagerInterface $entityManager, MailerInterface $mailer, string $email, UserRepository $userRepository): JsonResponse
 {
@@ -103,17 +106,20 @@ public function archiverfile(int $id, EntityManagerInterface $entityManager, Mai
     $entityManager->persist($file);
     $entityManager->flush();
 
+
+    /*
     // Send email to current user
     $email = (new Email())
         ->from('sabriskandar5@gmail.com')
         ->to($email)
         ->subject('File Archived')
         ->html('<p>Bonjour,</p>
-        <p>Le fichier <strong>'. $file->getName().'</strong> a été archivé avec succès.</p>
+        <p>Le fichier <strong>'. $file->getName().'</strong> a été archivé avec succès et sera automatiquement supprimé après 3 jours.</p>
         <p>Cordialement,</p>
         <p>L\'équipe de support</p>');
         
     $mailer->send($email);
+    */
 
     return new JsonResponse(['message' => 'File status updated to false']);
 }
@@ -131,10 +137,7 @@ public function findUser2(string $name, File $fileRepository , EntityManagerInte
     }
     return $this->json([
         'id' => $file->getId(),
-        'fileName' => $file->getName(),
-       
-
-        
+        'fileName' => $file->getName(),    
     ]);
 }
 
@@ -162,4 +165,132 @@ public function deletefilefromarchive(int $id, EntityManagerInterface $entityMan
 
     return new JsonResponse(['message' => 'File deleted successfully']);
 }
+
+#[Route('/rename_file/{id}', name: 'rename_file', methods: ['POST'])]
+public function renameFile(Request $request, EntityManagerInterface $entityManager, int $id): Response
+{
+    $file = $entityManager->getRepository(File::class)->find($id);
+    if (!$file) {
+        throw $this->createNotFoundException('File not found');
+    }
+
+    $name = $request->request->get('name');
+    if (!$name) {
+        throw $this->createNotFoundException('New name not specified');
+    }
+
+    // Get the directory and the original filename
+    $path = $file->getPath();
+    $originalName = basename($path);
+
+    // Get the extension of the file
+    $extension = pathinfo($originalName, PATHINFO_EXTENSION);
+
+    // Generate the new filename with the new name and the same extension
+    $newName = $name . '.' . $extension;
+    $newPath = str_replace($originalName, $newName, $path);
+
+    // Rename the file by replacing the original name with the new name
+    if (!rename($path, $newPath)) {
+        throw new \Exception('Error renaming file');
+    }
+
+    // Update the File entity with the new path and name
+    $file->setName($newName);
+    $file->setPath($newPath);
+    $entityManager->flush();
+
+    return new Response('File renamed successfully.');
+}
+
+
+
+
+#[Route('/restaurerfile/{id}/{email}', name: 'restaurer-file', methods: ['PUT'])]
+public function restaurerfile(int $id, EntityManagerInterface $entityManager, MailerInterface $mailer, string $email, UserRepository $userRepository): JsonResponse
+{
+    $user = $userRepository->findOneBy(['email' => $email]);
+
+    // Find the user by email
+    if (!$user) {
+        return $this->json(['error' => sprintf('User with username "%s" not found.', $email)], 404);
+    }
+
+    $file = $entityManager->getRepository(File::class)->find($id);
+
+    if (!$file) {
+        throw $this->createNotFoundException('File not found');
+    }
+
+    // Update the status to false
+    $file->setStatus(true);
+    $entityManager->persist($file);
+    $entityManager->flush();
+
+   
+
+    return new JsonResponse(['message' => 'File status updated to false']);
+}
+
+
+
+#[Route('/getfilesArchive/{email}', name: 'get_user_filesArchive', methods: ['GET'])]
+public function getUserFilesArchive(string $email, EntityManagerInterface $entityManager): JsonResponse
+{
+    $user = $entityManager->getRepository(User::class)->findOneBy(['email' => $email]);
+
+    if (!$user) {
+        throw $this->createNotFoundException('User not found');
+    }
+
+    $yesterday = new \DateTime();
+    $yesterday->modify('-3 day');
+    
+    $queryBuilder = $entityManager->createQueryBuilder();
+    $queryBuilder->select('f')
+        ->from(File::class, 'f')
+        ->where('f.user = :user')
+        ->andWhere('f.date >= :yesterday')
+        ->orderBy('f.date', 'DESC')
+        ->setParameter('user', $user)
+        ->setParameter('yesterday', $yesterday);
+    
+    $files = $queryBuilder->getQuery()->getResult();
+
+    $responseData = [];
+
+    foreach ($files as $file) {
+        $responseData[] = [
+            'id' => $file->getId(),
+            'user_id' => $file->getUser()->getId(),
+            'name' => $file->getName(),
+            'date' => $file->getDate()->format('Y-m-d'),
+            'path' => $file->getPath(),
+            'status'=> $file->getStatus(),
+        ];
+    }
+
+    return new JsonResponse($responseData);
+}
+
+
+#[Route('/Filedownload/{name}', name: 'download_file', methods: ['GET'])]
+public function downloadFile(string $name, EntityManagerInterface $entityManager): Response
+{
+    $file = $entityManager->getRepository(File::class)->find($name);
+    if (!$file) {
+        throw $this->createNotFoundException('File not found');
+    }
+
+    // Generate response
+    $response = new Response();
+    $disposition = $response->headers->makeDisposition(ResponseHeaderBag::DISPOSITION_ATTACHMENT, $file->getName());
+    $response->headers->set('Content-Disposition', $disposition);
+    $response->headers->set('Content-Type', mime_content_type($file->getPath()));
+    $response->setContent(file_get_contents($file->getPath()));
+
+    return $response;
+}
+
+
 }
