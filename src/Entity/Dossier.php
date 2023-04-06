@@ -1,8 +1,9 @@
 <?php
-
 namespace App\Entity;
 
 use App\Repository\DossierRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -18,15 +19,21 @@ class Dossier
     #[ORM\JoinColumn(nullable: false)]
     private ?User $user = null;
 
-    #[ORM\ManyToOne]
-    #[ORM\JoinColumn(nullable: false)]
-    private ?File $file = null;
-
+    #[ORM\ManyToMany(targetEntity: File::class)]
+    #[ORM\JoinTable(name: "dossier_files")]
+    private Collection $files;
+    
     #[ORM\Column(length: 255)]
     private ?string $namedossier = null;
 
     #[ORM\Column(type: Types::DATE_MUTABLE)]
     private ?\DateTimeInterface $datedossier = null;
+
+    public function __construct()
+    {
+        $this->files = new ArrayCollection();
+    }
+
 
     public function getId(): ?int
     {
@@ -45,14 +52,23 @@ class Dossier
         return $this;
     }
 
-    public function getFile(): ?File
+    public function getFiles(): Collection
     {
-        return $this->file;
+        return $this->files;
     }
 
-    public function setFile(?File $file): self
+    public function addFile(File $file): self
     {
-        $this->file = $file;
+        if (!$this->files->contains($file)) {
+            $this->files[] = $file;
+        }
+
+        return $this;
+    }
+
+    public function removeFile(File $file): self
+    {
+        $this->files->removeElement($file);
 
         return $this;
     }
@@ -81,3 +97,4 @@ class Dossier
         return $this;
     }
 }
+

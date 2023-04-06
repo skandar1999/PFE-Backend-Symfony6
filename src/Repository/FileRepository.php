@@ -2,6 +2,7 @@
 
 namespace App\Repository;
 
+use App\Entity\Dossier;
 use App\Entity\File;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -38,6 +39,7 @@ class FileRepository extends ServiceEntityRepository
             $this->getEntityManager()->flush();
         }
     }
+
 
 //    /**
 //     * @return File[] Returns an array of File objects

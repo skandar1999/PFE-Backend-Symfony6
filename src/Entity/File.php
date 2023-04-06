@@ -1,9 +1,10 @@
 <?php
-
 namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiResource;
 use App\Repository\FileRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -31,7 +32,8 @@ class File
     #[ORM\ManyToOne]
     private ?User $user = null;
 
-    
+    #[ORM\ManyToOne]
+    private ?Dossier $dossier = null;
 
     public function getId(): ?int
     {
@@ -75,30 +77,38 @@ class File
     }
 
     public function getPath(): ?string
-{
-    return $this->path;
-}
+    {
+        return $this->path;
+    }
 
-public function setPath(string $path): self
-{
-    $this->path = $path;
+    public function setPath(string $path): self
+    {
+        $this->path = $path;
 
-    return $this;
-}
+        return $this;
+    }
 
+    public function getStatus(): bool
+    {
+        return $this->status;
+    }
 
-public function getStatus(): bool
-{
-    return $this->status;
-}
+    public function setStatus(bool $status): self
+    {
+        $this->status = $status;
 
-public function setStatus(bool $status): self
-{
-    $this->status = $status;
-    return $this;
-}
+        return $this;
+    }
 
+    public function getDossier(): ?Dossier
+    {
+        return $this->dossier;
+    }
 
+    public function setDossier(?Dossier $dossier): self
+    {
+        $this->dossier = $dossier;
 
-
+        return $this;
+    }
 }

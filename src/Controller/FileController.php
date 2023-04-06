@@ -85,7 +85,7 @@ return new JsonResponse($responseData);
 }
  
 
-#[Route('/archiver/{id}/{email}', name: 'delete_files', methods: ['PUT'])]
+#[Route('/archiver/{id}/{email}', name: 'archiver_files', methods: ['PUT'])]
 public function archiverfile(int $id, EntityManagerInterface $entityManager, MailerInterface $mailer, string $email, UserRepository $userRepository): JsonResponse
 {
     $user = $userRepository->findOneBy(['email' => $email]);
@@ -104,8 +104,8 @@ public function archiverfile(int $id, EntityManagerInterface $entityManager, Mai
     // Update the status to false
     $file->setStatus(false);
     $entityManager->persist($file);
+    $file->setDate(new \DateTime());
     $entityManager->flush();
-
 
     /*
     // Send email to current user
@@ -144,7 +144,6 @@ public function findUser2(string $name, File $fileRepository , EntityManagerInte
 
 
 #[Route('/deletefilefromarchive/{id}', name: 'delete_files_fromarchive', methods: ['DELETE'])]
-
 public function deletefilefromarchive(int $id, EntityManagerInterface $entityManager): JsonResponse
 {
     $file = $entityManager->getRepository(File::class)->find($id);
@@ -244,7 +243,7 @@ public function getUserFilesArchive(string $email, EntityManagerInterface $entit
     }
 
     $yesterday = new \DateTime();
-    $yesterday->modify('-3 day');
+    $yesterday->modify('-10 day');
     
     $queryBuilder = $entityManager->createQueryBuilder();
     $queryBuilder->select('f')

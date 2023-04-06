@@ -11,11 +11,13 @@ use App\Repository\DossierRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Filesystem\Exception\IOExceptionInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Validator\Exception\InvalidArgumentException;
 
 
 class DossierController extends AbstractController
@@ -121,4 +123,160 @@ public function getFilesByFolderAndFile($id, $file_id, FileRepository $fileRepos
 
 
 
+#[Route('/rename_folder/{id}', name: 'rename_folder', methods: ['POST'])]
+public function renameFolder(Request $request, EntityManagerInterface $entityManager, int $id): Response
+{
+    $dossier = $entityManager->getRepository(Dossier::class)->find($id);
+    if (!$dossier) {
+        throw $this->createNotFoundException('Dossier not found');
+    }
+
+    // Get the new name from the request
+    $newName = $request->request->get('name');
+
+    if (!$newName) {
+        throw $this->createNotFoundException('New name not specified');
+    }
+
+    // Set the new name of the Dossier entity
+    $dossier->setNamedossier($newName);
+
+    // Save the changes to the database
+    $entityManager->flush();
+
+    return new Response('Folder renamed successfully.');
 }
+
+
+#[Route('/dossiers/{id}/files', name: 'get_files_by_folder', methods: ['GET'])]
+public function getFilesByFolder(Dossier $folder): Response
+{
+    $files = $folder->getFiles();
+    $data = [];
+
+    foreach ($files as $file) {
+        $data[] = [
+            'id' => $file->getId(),
+            'name' => $file->getName(),
+            'path' => $file->getPath(),
+            'date' => $file->getDate()->format('Y-m-d'),
+            'status' => $file->getStatus(),
+            'user' => [
+                'id' => $file->getUser()->getId(),
+                'name' => $file->getUser()->getName(),
+            ],
+            'folder' => [
+                'id' => $file->getFolder()->getId(),
+                'name' => $file->getFolder()->getName(),
+            ],
+        ];
+    }
+
+    return new JsonResponse($data);
+}
+
+
+
+#[Route('/dossiers/{id}', name: 'add_file_to_dossier', methods: ['POST'])]
+public function addFileToDossier(int $id, Request $request, EntityManagerInterface $entityManager): Response
+{
+    // Load the dossier by ID
+    $dossier = $entityManager->getRepository(Dossier::class)->find($id);
+    if (!$dossier) {
+        throw $this->createNotFoundException('Dossier not found');
+    }
+
+    // Get the uploaded file from the request
+    $uploadedFile = $request->files->get('file');
+    $name = $uploadedFile->getClientOriginalName();
+
+    // Create a new File entity and associate it with the dossier
+    $file = new File();
+    $file->setName($name);
+    $file->setDate(new \DateTime());
+    $file->setUser($this->getUser());
+    $dossier->addFile($file);
+
+    // Save the uploaded file to the server
+    $uploadDir = $this->getParameter('uploads_directory');
+    $uploadedFile->move($uploadDir, $name);
+    $file->setPath($uploadDir.'/'.$name);
+
+    // Save the file and dossier to the database
+    $entityManager->persist($file);
+    $entityManager->persist($dossier);
+    $entityManager->flush();
+
+    return new Response('File uploaded successfully');
+}
+
+
+#[Route('/FilesByDossiers/{id}', name:'get_files_byDossier', methods:["GET"])]
+public function getDossier(int $id, DossierRepository $dossierRepository): JsonResponse
+{
+    $dossier = $dossierRepository->find($id);
+    if (!$dossier) {
+        return new JsonResponse(['error' => 'Dossier not found'], Response::HTTP_NOT_FOUND);
+    }
+    
+    // retrieve the dossier's files
+    $files = [];
+    foreach ($dossier->getFiles() as $file) {
+        $files[] = [
+            'id' => $file->getId(),
+            'name' => $file->getName(),
+            'path' => $file->getPath(),
+            'status' =>$file->getStatus(),
+            // add any other properties you want to return
+        ];
+    }
+
+    // return the dossier data as JSON
+    $data = [
+        'id' => $dossier->getId(),
+        'files' => $files,
+        
+        // add any other properties you want to return
+    ];
+    return new JsonResponse($data);
+}
+
+
+#[Route("/dossiersname/{id}", name:"get_dossier", methods:["GET"])]
+public function getDossierName(int $id, DossierRepository $dossierRepository): JsonResponse
+{
+   $dossier = $dossierRepository->find($id);
+   if (!$dossier) {
+       return new JsonResponse(['error' => 'Dossier not found'], Response::HTTP_NOT_FOUND);
+   }
+
+   $data = ['name' => $dossier->getNamedossier(),];
+   return new JsonResponse($data);
+}
+
+
+#[Route("/filesss/{id}", name:"update_file_status", methods:["PUT"])]
+public function updateFileStatus(int $id, EntityManagerInterface $entityManager): JsonResponse
+{
+    $file = $entityManager->getRepository(File::class)->find($id);
+
+    if (!$file) {
+        throw $this->createNotFoundException('File not found');
+    }
+
+    $file->setStatus(false);
+    $entityManager->flush();
+
+    
+
+    return new JsonResponse(['message' => 'File status updated successfully']);
+}
+
+
+
+
+
+
+}
+
+
