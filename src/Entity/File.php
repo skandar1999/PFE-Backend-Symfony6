@@ -35,6 +35,9 @@ class File
     #[ORM\ManyToOne]
     private ?Dossier $dossier = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?int $version = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -108,6 +111,18 @@ class File
     public function setDossier(?Dossier $dossier): self
     {
         $this->dossier = $dossier;
+
+        return $this;
+    }
+
+    public function getVersion(): ?int
+    {
+        return $this->version;
+    }
+
+    public function setVersion(?int $version): self
+    {
+        $this->version = $version;
 
         return $this;
     }

@@ -162,6 +162,8 @@ public function findUser(string $email, UserRepository $userRepository): JsonRes
         'roles' => $user->getRoles(),
         'mobile' => $user->getMobile(),
         'image' => $user->getImage(),
+        'notfication' => $user->isNotfication(),
+
 
     ]);
 }
@@ -184,6 +186,8 @@ public function findUserById(int $id, UserRepository $userRepository): JsonRespo
         'roles' => $user->getRoles(),
         'password' => $user->getPassword(),
         'image' => $user->getImage(),
+        'notfication' => $user->isNotfication(),
+
 
     ]);
 }
@@ -239,6 +243,7 @@ public function update(Request $request, ManagerRegistry $doctrine, string $emai
         'mobile' => $user->getMobile(),
         'password' => $user->getpassword(),
         'roles' => $user->getRoles(),
+        'notfication' => $user->isNotfication(),
 
     ]]);
 }
@@ -356,5 +361,26 @@ public function uploadImage(string $email, Request $request, EntityManagerInterf
     return $this->json(['status' => true,
                          'message' => 'Password is correct']);
 }
+
+
+
+
+#[Route("toggle-versioning/{email}", name:"user_toggle_versioning", methods:["PUT"])]
+     
+    public function toggleVersioning(string $email, Request $request, EntityManagerInterface $entityManager): Response
+    {
+        // Find the user you want to update
+        $user = $entityManager->getRepository(User::class)->findOneBy(['email' => $email]);
+        if (!$user) {
+            throw $this->createNotFoundException('User not found');
+        }
+
+        // Toggle the versioning status
+        $user->setNotfication(!$user->isNotfication());
+
+        $entityManager->flush();
+
+        return new Response('Versioning status updated successfully', Response::HTTP_OK);
+    }
     
 }

@@ -19,11 +19,11 @@ use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use finfo;
-
-
+use phpDocumentor\Reflection\Types\Integer;
 
 class FileController extends AbstractController
 {
+    
     #[Route('/Fileuploade/{email}', name: 'upload_file', methods: ['POST'])]
 public function uploadFile(string $email, Request $request, EntityManagerInterface $entityManager): Response
 {
@@ -35,24 +35,57 @@ public function uploadFile(string $email, Request $request, EntityManagerInterfa
     $uploadedFile = $request->files->get('files');
     $name = $request->request->get('name') ?? $uploadedFile->getClientOriginalName();
 
-    // Create a new File entity and set its properties
-    $file = new File();
-    $file->setName($name);
-    $file->setDate(new \DateTime());
-    $file->setUser($user);
+    // Check if a file with the given name already exists in the database for this user
+    $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $name, 'user' => $user], ['version' => 'DESC']);
+    if ($existingFiles) {
+        $version = $existingFiles[0]->getVersion() + 1;
+    } else {
+        $version = 0;
+    }
 
-    // Move the uploaded file to a directory on the server
-    $uploadDir = $this->getParameter('uploads_directory');
-    $originalName = $uploadedFile->getClientOriginalName();
-    $uploadedFile->move($uploadDir, $originalName);
-    $file->setPath($uploadDir.'/'.$originalName);
+    // Append the version number to the file name
+    $version = 1;
+$originalName = $uploadedFile->getClientOriginalName();
+$parts = pathinfo($originalName);
+$extension = isset($parts['extension']) ? '.' . $parts['extension'] : '';
+$basename = basename($originalName, $extension);
 
-    // Persist the File entity to the database
-    $entityManager->persist($file);
-    $entityManager->flush();
-
-    return new Response('File uploaded successfully.');
+$existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $originalName, 'user' => $user]);
+if ($existingFiles) {
+    $i = 2;
+    do {
+        $name = $basename . '_' . $i . $extension;
+        $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $name, 'user' => $user]);
+        $i++;
+    } while ($existingFiles);
+    $version = $i - 1;
+} else {
+    $name = $originalName;
 }
+
+// Create a new File entity and set its properties
+$file = new File();
+$file->setName($name);
+$file->setDate(new \DateTime());
+$file->setUser($user);
+$file->setVersion($version);
+
+// Move the uploaded file to a directory on the server
+$uploadDir = $this->getParameter('uploads_directory');
+$uploadedFile->move($uploadDir, $name);
+$file->setPath($uploadDir.'/'.$name);
+
+// Persist the File entity to the database
+$entityManager->persist($file);
+$entityManager->flush();
+
+return new Response('File uploaded successfully.');
+}
+    
+    
+
+    
+    
 
 
 
@@ -243,7 +276,7 @@ public function getUserFilesArchive(string $email, EntityManagerInterface $entit
     }
 
     $yesterday = new \DateTime();
-    $yesterday->modify('-10 day');
+    $yesterday->modify('-3 day');
     
     $queryBuilder = $entityManager->createQueryBuilder();
     $queryBuilder->select('f')

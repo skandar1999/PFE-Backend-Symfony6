@@ -7,6 +7,7 @@ use App\Entity\User;
 use App\Entity\Dossier;
 
 use App\Repository\FileRepository;
+use App\Repository\UserRepository;
 use App\Repository\DossierRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Filesystem\Filesystem;
@@ -275,8 +276,43 @@ public function updateFileStatus(int $id, EntityManagerInterface $entityManager)
 
 
 
+#[Route("/FilesByDossiersUser/{email}/{id}", name:"get_files_byDossieranduser", methods:["GET"])]
+public function getFilesByFolderAndUser(int $id, string $email, DossierRepository $dossierRepository, UserRepository $userRepository): JsonResponse
+{
+    $dossier = $dossierRepository->find($id);
+    if (!$dossier) {
+        return new JsonResponse(['error' => 'Dossier not found'], Response::HTTP_NOT_FOUND);
+    }
+    
+    $user = $userRepository->findOneBy(['email' => $email]);
+    if (!$user) {
+        return new JsonResponse(['error' => 'User not found'], Response::HTTP_NOT_FOUND);
+    }
+    
+    // retrieve the dossier's files
+    $files = [];
+    foreach ($dossier->getFiles() as $file) {
+        if ($file->getUser() === $user) {
+        $files[] = [
+            'id' => $file->getId(),
+            'name' => $file->getName(),
+            'path' => $file->getPath(),
+            'status' =>$file->getStatus(),
+            // add any other properties you want to return
+        ];}
+    }
+
+    // return the dossier data as JSON
+    $data = [
+        'id' => $dossier->getId(),
+        'files' => $files,
+        
+        // add any other properties you want to return
+    ];
+    return new JsonResponse($data);
+}
+
 
 
 }
-
 
