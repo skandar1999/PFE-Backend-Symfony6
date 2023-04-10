@@ -62,7 +62,7 @@ class Dossier
         if (!$this->files->contains($file)) {
             $this->files[] = $file;
         }
-
+        
         return $this;
     }
 
