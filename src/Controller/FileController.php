@@ -34,6 +34,8 @@ public function uploadFile(string $email, Request $request, EntityManagerInterfa
 
     $uploadedFile = $request->files->get('files');
     $name = $request->request->get('name') ?? $uploadedFile->getClientOriginalName();
+    $size = $uploadedFile->getSize();
+       
 
     // Check if a file with the given name already exists in the database for this user
     $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $name, 'user' => $user], ['version' => 'DESC']);
@@ -45,30 +47,34 @@ public function uploadFile(string $email, Request $request, EntityManagerInterfa
 
     // Append the version number to the file name
     $version = 1;
-$originalName = $uploadedFile->getClientOriginalName();
-$parts = pathinfo($originalName);
-$extension = isset($parts['extension']) ? '.' . $parts['extension'] : '';
-$basename = basename($originalName, $extension);
+    $originalName = $uploadedFile->getClientOriginalName();
+    $parts = pathinfo($originalName);
+    $extension = isset($parts['extension']) ? '.' . $parts['extension'] : '';
+    $basename = basename($originalName, $extension);
+    // Check if a file with the given name already exists in the database for this user
+    $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $originalName, 'user' => $user]);
+    if ($existingFiles) {
+        $i = 2;
+        do {
+            $name = $basename . ' (' . $i . ')'  . $extension;
+            $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $name, 'user' => $user]);
+            $i++;
+        } while ($existingFiles);
+        $version = $i - 1;
+    } else {
+        $name = $originalName;
+    }
+    
+    // Create a new File entity and set its properties
+    $file = new File();
+    $file->setName($name);
+    $file->setDate(new \DateTime());
+    $file->setUser($user);
+    $file->setVersion($version);
+    $file->setSize($size);
+    $sizeHumanReadable = $file->getSizeHumanReadable();
+    $file->setSize($sizeHumanReadable);
 
-$existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $originalName, 'user' => $user]);
-if ($existingFiles) {
-    $i = 2;
-    do {
-        $name = $basename . '_' . $i . $extension;
-        $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $name, 'user' => $user]);
-        $i++;
-    } while ($existingFiles);
-    $version = $i - 1;
-} else {
-    $name = $originalName;
-}
-
-// Create a new File entity and set its properties
-$file = new File();
-$file->setName($name);
-$file->setDate(new \DateTime());
-$file->setUser($user);
-$file->setVersion($version);
 
 // Move the uploaded file to a directory on the server
 $uploadDir = $this->getParameter('uploads_directory');
@@ -84,38 +90,42 @@ return new Response('File uploaded successfully.');
     
     
 
-    
-    
-
-
 
 #[Route('/getfiles/{email}', name: 'get_user_files', methods: ['GET'])]
-public function getUserFiles(string $email, EntityManagerInterface $entityManager): JsonResponse
+public function getUserFiles(string $email, Request $request, EntityManagerInterface $entityManager): JsonResponse
 {
-$user = $entityManager->getRepository(User::class)->findOneBy(['email' => $email]);
+    $user = $entityManager->getRepository(User::class)->findOneBy(['email' => $email]);
 
-if (!$user) {
-    throw $this->createNotFoundException('User not found');
+    if (!$user) {
+        throw $this->createNotFoundException('User not found');
+    }
+
+    $name = $request->query->get('name');
+
+    if ($name) {
+        $files = $entityManager->getRepository(File::class)->findBy(['user' => $user, 'name' => $name], ['date' => 'DESC']);
+    } else {
+        $files = $entityManager->getRepository(File::class)->findBy(['user' => $user], ['date' => 'DESC']);
+    }
+
+    $responseData = [];
+
+    foreach ($files as $file) {
+        $responseData[] = [
+            'id' => $file->getId(),
+            'user_id' => $file->getUser()->getId(),
+            'name' => $file->getName(),
+            'date' => $file->getDate() ? $file->getDate()->format('d-m-y H:i') : null,
+            'path' => $file->getPath(),
+            'status'=> $file->getStatus(),
+            'size'=> $file->getSize(),
+
+        ];
+    }
+
+    return new JsonResponse($responseData);
 }
 
-$files = $entityManager->getRepository(File::class)->findBy(['user' => $user], ['date' => 'DESC']);
-
-$responseData = [];
-
-foreach ($files as $file) {
-    $responseData[] = [
-        'id' => $file->getId(),
-        'user_id' => $file->getUser()->getId(),
-        'name' => $file->getName(),
-        'date' => $file->getDate()->format('Y-m-d'),
-        'path' => $file->getPath(),
-        'status'=> $file->getStatus(),
-    ];
-}
-
-return new JsonResponse($responseData);
-
-}
  
 
 #[Route('/archiver/{id}/{email}', name: 'archiver_files', methods: ['PUT'])]
@@ -261,7 +271,7 @@ public function restaurerfile(int $id, EntityManagerInterface $entityManager, Ma
 
    
 
-    return new JsonResponse(['message' => 'File status updated to false']);
+    return new JsonResponse(['message' => 'File status updated to true']);
 }
 
 

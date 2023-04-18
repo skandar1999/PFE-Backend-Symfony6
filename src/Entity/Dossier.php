@@ -29,6 +29,13 @@ class Dossier
     #[ORM\Column(type: Types::DATE_MUTABLE)]
     private ?\DateTimeInterface $datedossier = null;
 
+
+    #[ORM\Column(type: 'boolean', options: ['default' => true])]
+    private bool $status = true;
+    
+    #[ORM\Column]
+    private ?bool $versionning = null;
+
     public function __construct()
     {
         $this->files = new ArrayCollection();
@@ -96,5 +103,36 @@ class Dossier
 
         return $this;
     }
+
+    public function isVersionning(): ?bool
+    {
+        return $this->versionning;
+    }
+
+    public function setVersionning(bool $versionning): self
+    {
+        $this->versionning = $versionning;
+
+        return $this;
+    }
+
+    public function getVersionning(): bool
+    {
+        return $this->versionning;
+    }
+
+    
+    public function getStatus(): bool
+    {
+        return $this->status;
+    }
+
+    public function setStatus(bool $status): self
+    {
+        $this->status = $status;
+
+        return $this;
+    }
+   
 }
 

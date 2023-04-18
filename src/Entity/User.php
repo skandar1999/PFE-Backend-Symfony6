@@ -53,8 +53,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     private $resetTokenExpiresAt;
 
-    #[ORM\Column]
-    private ?bool $notfication = null;
+    
 
     public function getResetToken(): ?string
     {
@@ -185,19 +184,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         // $this->plainPassword = null;
     }
 
-    public function isNotfication(): ?bool
-    {
-        return $this->notfication;
-    }
-
-    public function setNotfication(bool $notfication): self
-    {
-        $this->notfication = $notfication;
-
-        return $this;
-    }
+  
 
 
     
 }
-

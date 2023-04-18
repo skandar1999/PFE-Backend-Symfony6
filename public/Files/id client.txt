@@ -1,0 +1,18 @@
+194123244591-5tohsblsdtojjkm0odjuij89gk74upfm.apps.googleusercontent.com
+
+
+code secret :
+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
+
+
+email send 
+ $email = (new Email())
+        ->from('sabriskandar5@gmail.com')
+        ->to($email)
+        ->subject('File Archived')
+        ->html('<p>Bonjour,</p>
+        <p>Le fichier <strong>'. $file->getName().'</strong> a été archivé.</p>
+        <p>Cordialement,</p>
+        <p>L\'équipe de support</p>');
+        
+    $mailer->send($email);

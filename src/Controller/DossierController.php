@@ -78,6 +78,8 @@ public function getUserFiles(string $email, EntityManagerInterface $entityManage
             'user_id' => $dossier->getUser()->getId(),
             'name' => $dossier->getNamedossier(),
             'date' => $dossier->getDatedossier()->format('Y-m-d'),
+            'status'=> $dossier->getStatus(),
+
         ];
     }
 
@@ -163,6 +165,8 @@ public function getFilesByFolder(Dossier $folder): Response
             'path' => $file->getPath(),
             'date' => $file->getDate()->format('Y-m-d'),
             'status' => $file->getStatus(),
+            'size'=> $file->getSize(),
+
             'user' => [
                 'id' => $file->getUser()->getId(),
                 'name' => $file->getUser()->getName(),
@@ -190,7 +194,12 @@ public function getFilesByFolder(Dossier $folder): Response
     
         $uploadedFile = $request->files->get('file');
         $name = $request->request->get('name') ?? $uploadedFile->getClientOriginalName();
-    
+        $size = $uploadedFile->getSize();
+
+        $file = new File();
+        $file->setName($name);
+        $file->setSize($size);
+        $sizeHumanReadable = $file->getSizeHumanReadable();
         // Check if a file with the given name already exists in the database for this dossier
         $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $name, 'dossier' => $dossier], ['version' => 'DESC']);
         if ($existingFiles) {
@@ -209,7 +218,7 @@ public function getFilesByFolder(Dossier $folder): Response
         if ($existingFiles) {
             $i = 2;
             do {
-                $name = $basename . '_' . $i . $extension;
+                $name = $basename . ' (' . $i . ')' . $extension;
                 $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $name, 'dossier' => $dossier]);
                 $i++;
             } while ($existingFiles);
@@ -225,7 +234,8 @@ public function getFilesByFolder(Dossier $folder): Response
         $file->setUser($this->getUser());
         $file->setDossier($dossier); // Set the dossier of the file
         $file->setVersion($version);
-    
+        $file->setSize($sizeHumanReadable);
+
         // Move the uploaded file to a directory on the server
         $uploadDir = $this->getParameter('uploads_directory');
         $uploadedFile->move($uploadDir, $name);
@@ -239,9 +249,11 @@ public function getFilesByFolder(Dossier $folder): Response
     }
     
 
+  
+    
 
     #[Route('/FilesByDossiers/{id}', name: 'FilesByDossier', methods: ['GET'])]
-    public function getFilesByDossier(int $id, FileRepository $fileRepository): JsonResponse
+public function getFilesByDossier(int $id, FileRepository $fileRepository): JsonResponse
 {
     $files = $fileRepository->findBy(['dossier' => $id], ['date' => 'DESC']);
 
@@ -250,20 +262,45 @@ public function getFilesByFolder(Dossier $folder): Response
     }
 
     $responseData = [];
+    
     foreach ($files as $file) {
+        $name = $file->getName();
+        $dossierVersionning = $file->getDossier()->getVersionning();
+        
+        $name = $this->removeExtensionPart($name, $dossierVersionning);
+        
         $responseData[] = [
             'id' => $file->getId(),
-            'name' => $file->getName(),
+            'name' => $name,
             'path' => $file->getPath(),
-            'date' => $file->getDate()->format('Y-m-d'),
+            'date' => $file->getDate() ? $file->getDate()->format('d-m-y H:i') : null,
             'status' => $file->getStatus(),
-            // add any other properties you want to return
+            'size'=> $file->getSize(),
         ];
     }
-
+    
+    
     return new JsonResponse($responseData);
 }
+
+private function removeExtensionPart(string $filename, bool $versionning): string
+{
+    // Remove the (2) part of the filename if the dossier status is true
+    if (!$versionning) {
+        $filename = preg_replace('/\s\(\d+\)\./', '.', $filename);
+    }
+        
+    // Extract the filename without its extension
+    $name = pathinfo($filename, PATHINFO_FILENAME);
     
+    // Extract the extension of the filename
+    $extension = pathinfo($filename, PATHINFO_EXTENSION);
+    
+    // Combine the name and extension to form the new filename
+    $newFilename = $name . '.' . $extension;
+    
+    return $newFilename;
+}
 
 
 
@@ -278,12 +315,15 @@ public function getDossierName(int $id, DossierRepository $dossierRepository): J
    }
 
    $data = ['name' => $dossier->getNamedossier(),
-            'id' => $dossier->getId()];
+            'id' => $dossier->getId(),
+            'versionning' => $dossier->getVersionning(),
+
+        ];
    return new JsonResponse($data);
 }
 
 
-        // update file statut dans dossier
+        // update file statut dans dossier , archiver le file qui est dans le dossier
         #[Route("/filesss/{id}", name:"update_file_status", methods:["PUT"])]
         public function updateFileStatus(int $id, EntityManagerInterface $entityManager, Security $security): JsonResponse
         {
@@ -299,6 +339,7 @@ public function getDossierName(int $id, DossierRepository $dossierRepository): J
             if ($dossier && $dossier->getUser()) {
                 $file->setUser($dossier->getUser()); // Set the user of the file to the owner of the dossier
                 $file->setStatus(false);
+                $file->setDate(new \DateTime());
                 $entityManager->flush();
         
                 return new JsonResponse(['message' => 'File status updated successfully', 'dossier' => $dossier], 200);
@@ -308,54 +349,92 @@ public function getDossierName(int $id, DossierRepository $dossierRepository): J
         }
         
         
+    
+
+
+
         
-
-        
-
-        
-             
-
-
-
-
-
-
-#[Route("/FilesByDossiersUser/{id}", name:"get_files_byDossieranduser", methods:["GET"])]
-public function getFilesByFolderAndUser(int $id, string $email, DossierRepository $dossierRepository, UserRepository $userRepository): JsonResponse
+#[Route('/archiverDossier/{id}/{email}', name: 'archiver_Dossier', methods: ['PUT'])]
+public function archiverfile(int $id, EntityManagerInterface $entityManager, MailerInterface $mailer, string $email, UserRepository $userRepository): JsonResponse
 {
-    $dossier = $dossierRepository->find($id);
-    if (!$dossier) {
-        return new JsonResponse(['error' => 'Dossier not found'], Response::HTTP_NOT_FOUND);
-    }
-    
     $user = $userRepository->findOneBy(['email' => $email]);
+
+    // Find the user by email
     if (!$user) {
-        return new JsonResponse(['error' => 'User not found'], Response::HTTP_NOT_FOUND);
+        return $this->json(['error' => sprintf('User with username "%s" not found.', $email)], 404);
+    }
+
+    $dossier = $entityManager->getRepository(Dossier::class)->find($id);
+
+    if (!$dossier) {
+        throw $this->createNotFoundException('Dossier not found');
+    }
+
+    // Update the status to false
+    $dossier->setStatus(false);
+    $entityManager->persist($dossier);
+    $dossier->setDatedossier(new \DateTime());
+    $entityManager->flush();
+
+    /*
+    // Send email to current user
+    $email = (new Email())
+        ->from('sabriskandar5@gmail.com')
+        ->to($email)
+        ->subject('File Archived')
+        ->html('<p>Bonjour,</p>
+        <p>Le fichier <strong>'. $file->getName().'</strong> a été archivé avec succès et sera automatiquement supprimé après 3 jours.</p>
+        <p>Cordialement,</p>
+        <p>L\'équipe de support</p>');
+        
+    $mailer->send($email);
+    */
+
+    return new JsonResponse(['message' => 'dossier status updated to false']);
+}
+
+
+#[Route('/restaurerDsossier/{id}/{email}', name: 'restaurer-dossier', methods: ['PUT'])]
+public function restaurerfile(int $id, EntityManagerInterface $entityManager, MailerInterface $mailer, string $email, UserRepository $userRepository): JsonResponse
+{
+    $user = $userRepository->findOneBy(['email' => $email]);
+
+    // Find the user by email
+    if (!$user) {
+        return $this->json(['error' => sprintf('User with username "%s" not found.', $email)], 404);
+    }
+
+    $dossier = $entityManager->getRepository(Dossier::class)->find($id);
+
+    if (!$dossier) {
+        throw $this->createNotFoundException('dossier not found');
+    }
+
+    // Update the status to false
+    $dossier->setStatus(true);
+    $entityManager->persist($dossier);
+    $entityManager->flush();
+
+   
+
+    return new JsonResponse(['message' => 'dossier status updated to false']);
+}
+
+#[Route("toggle-versioning/{id}", name:"dossier_toggle_versioning", methods:["PUT"])]
+     
+    public function toggleVersioning(int $id, Request $request, EntityManagerInterface $entityManager): Response
+    {
+        // Find the user you want to update
+        $dossier = $entityManager->getRepository(Dossier::class)->findOneBy(['id' => $id]);
+        if (!$dossier) {
+            throw $this->createNotFoundException('dossier not found');
+        }
+
+        // Toggle the versioning status
+        $dossier->setVersionning(!$dossier->isVersionning());
+        $entityManager->flush();
+
+        return new Response('Versioning status updated successfully', Response::HTTP_OK);
     }
     
-    // retrieve the dossier's files
-    $files = [];
-    foreach ($dossier->getFiles() as $file) {
-        if ($file->getUser() === $user) {
-        $files[] = [
-            'id' => $file->getId(),
-            'name' => $file->getName(),
-            'path' => $file->getPath(),
-            'status' =>$file->getStatus(),
-            // add any other properties you want to return
-        ];}
-    }
-
-    // return the dossier data as JSON
-        $data = [
-            'id' => $dossier->getId(),
-            'files' => $files,
-            
-            // add any other properties you want to return
-        ];
-        return new JsonResponse($data);
-    }
-
-
-
 }

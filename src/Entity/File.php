@@ -1,12 +1,13 @@
 <?php
 namespace App\Entity;
 
-use ApiPlatform\Metadata\ApiResource;
-use App\Repository\FileRepository;
-use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Collections\Collection;
+use DateTimeInterface;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use App\Repository\FileRepository;
+use ApiPlatform\Metadata\ApiResource;
+use Doctrine\Common\Collections\Collection;
+use Doctrine\Common\Collections\ArrayCollection;
 
 #[ORM\Entity(repositoryClass: FileRepository::class)]
 #[ApiResource]
@@ -23,8 +24,8 @@ class File
     #[ORM\Column(length: 255)]
     private ?string $path = null;
 
-    #[ORM\Column(type: Types::DATE_MUTABLE)]
-    private ?\DateTimeInterface $date = null;
+    #[ORM\Column(type: 'datetime')]
+    private ?DateTimeInterface $date = null;
 
     #[ORM\Column(type: 'boolean', options: ['default' => true])]
     private bool $status = true;
@@ -37,6 +38,9 @@ class File
 
     #[ORM\Column(nullable: true)]
     private ?int $version = null;
+
+    #[ORM\Column(type: 'string', length: 20)]
+    private ?string $size = null;
 
     public function getId(): ?int
     {
@@ -59,11 +63,11 @@ class File
     {
         return $this->date;
     }
-
+    
     public function setDate(\DateTimeInterface $date): self
     {
         $this->date = $date;
-
+    
         return $this;
     }
 
@@ -125,5 +129,32 @@ class File
         $this->version = $version;
 
         return $this;
+    }
+
+    
+
+    public function getSize(): ?string
+    {
+        return $this->size;
+    }
+    
+    public function setSize(string $size): self
+    {
+        $this->size = $size;
+    
+        return $this;
+    }
+
+    public function getSizeHumanReadable(): string {
+        $size = $this->size;
+        $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        $unitIndex = 0;
+        
+        while ($size >= 1024 && $unitIndex < count($units) - 1) {
+            $size /= 1024;
+            $unitIndex++;
+        }
+        
+        return round($size, 2) . ' ' . $units[$unitIndex];
     }
 }

@@ -162,7 +162,6 @@ public function findUser(string $email, UserRepository $userRepository): JsonRes
         'roles' => $user->getRoles(),
         'mobile' => $user->getMobile(),
         'image' => $user->getImage(),
-        'notfication' => $user->isNotfication(),
 
 
     ]);
@@ -186,7 +185,6 @@ public function findUserById(int $id, UserRepository $userRepository): JsonRespo
         'roles' => $user->getRoles(),
         'password' => $user->getPassword(),
         'image' => $user->getImage(),
-        'notfication' => $user->isNotfication(),
 
 
     ]);
@@ -364,7 +362,7 @@ public function uploadImage(string $email, Request $request, EntityManagerInterf
 
 
 
-
+/*
 #[Route("toggle-versioning/{email}", name:"user_toggle_versioning", methods:["PUT"])]
      
     public function toggleVersioning(string $email, Request $request, EntityManagerInterface $entityManager): Response
@@ -382,5 +380,5 @@ public function uploadImage(string $email, Request $request, EntityManagerInterf
 
         return new Response('Versioning status updated successfully', Response::HTTP_OK);
     }
-    
+    */
 }
