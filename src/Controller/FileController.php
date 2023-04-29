@@ -91,6 +91,9 @@ return new Response('File uploaded successfully.');
     
 
 
+
+
+
 #[Route('/getfiles/{email}', name: 'get_user_files', methods: ['GET'])]
 public function getUserFiles(string $email, Request $request, EntityManagerInterface $entityManager): JsonResponse
 {
@@ -333,6 +336,29 @@ public function downloadFile(string $name, EntityManagerInterface $entityManager
 
     return $response;
 }
+
+
+
+
+
+#[Route('/getpathofile/{id}', name: 'getpathofileE', methods: ['GET'])]
+public function getpathofile(Request $request, EntityManagerInterface $entityManager, int $id): Response
+{
+    $file = $entityManager->getRepository(File::class)->find($id);
+    if (!$file) {
+        throw $this->createNotFoundException('File not found');
+    }
+
+    // Get the directory and the original filename
+   
+    
+    // Return the file path as a JSON response
+    return $this->json([
+        'id' => $file->getPath(),
+        'fileName' => $file->getName(),    
+    ]);
+}
+
 
 
 }

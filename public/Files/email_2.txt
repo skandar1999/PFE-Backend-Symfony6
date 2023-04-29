@@ -1,7 +1,0 @@
-if (!this.newUser.email.includes('@') || !this.newUser.email.includes('gmail') || !this.newUser.email.includes('.')) {
-      this.errorEmail = 'adresse email non valide. Veuillez vérifier';
-      setTimeout(() => {
-        this.errorEmail = '';
-      }, 1900); // hide error message after 3 seconds
-      return;
-    }

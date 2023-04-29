@@ -32,71 +32,65 @@ class UserController extends AbstractController
     
     //Création d'un utilisateur
     #[Route('/userCreate', name: 'user_create', methods:'POST')]
-    public function userCreate(Request $request): Response
-    {
+public function userCreate(Request $request): Response
+{
 
-       $data=json_decode($request->getContent(),true);
+   $data=json_decode($request->getContent(),true);
 
+   $email=$data['email'];
 
-       $email=$data['email'];
-       $username=$data['username'];
-       $password=$data['password'];
-       $mobile=$data['mobile'];
-      
+   // Check if email contains '@capgemini' domain
+   if (!filter_var($email, FILTER_VALIDATE_EMAIL) || !strpos($email, '@capgemini')) {
+      return new JsonResponse([
+         'status' => false,
+         'message' => 'Veuillez saisir une adresse email valide '
+      ]);
+   }
 
-       //Vérifier si l'email existe déjà
+   $username=$data['username'];
+   $password=$data['password'];
+   $mobile=$data['mobile'];
 
-       $email_exist=$this->user->findOneByEmail($email);
+   //Vérifier si l'email existe déjà
+   $email_exist=$this->user->findOneByEmail($email);
 
-       if($email_exist)
-       {
-          return new JsonResponse
-          (
-              [
-                'status'=>false,
-                'message'=>'Email existe déjà, veuillez le changer'
-              ]
+   if($email_exist)
+   {
+      return new JsonResponse([
+         'status'=>false,
+         'message'=>'Email existe déjà, veuillez le changer'
+      ]);
+   }    
 
-              );
-       }    
-
-       $username_exist=$this->user->findOneByUsername($username);
+   $username_exist=$this->user->findOneByUsername($username);
 
    if($username_exist)
    {
-      return new JsonResponse
-      (
-          [
-            'status'=>false,
-            'message'=>'Nom utlilisateur existe déjà, veuillez le changer'
-          ]
-      );
+      return new JsonResponse([
+         'status'=>false,
+         'message'=>'Nom utlilisateur existe déjà, veuillez le changer'
+      ]);
    }
+   else
+   {
+      $user= new User();
 
-       else
-       {
-          $user= new User();
+      $user->setEmail($email)
+            ->setUsername($username)
+            ->setMobile($mobile)
+            ->setPassword(sha1($password))
+            ->setImage('user.jpg')
+            ->setRoles(['ROLE_USER']);
 
-          $user->setEmail($email)
-                ->setUsername($username)
-                ->setMobile($mobile)
-                ->setPassword(sha1($password))
-                ->setImage('user.jpg')
-                ->setRoles(['ROLE_USER']);
+     $this->manager->persist($user);
+     $this->manager->flush();
 
-         $this->manager->persist($user);
-         $this->manager->flush();
-
-         return new JsonResponse
-         (
-             [
-               'status'=>true,
-               'message'=>'user créé avec succès'
-             ]
-
-             );
-       }
-    }
+     return new JsonResponse([
+         'status'=>true,
+         'message'=>'user créé avec succès'
+     ]);
+   }
+}
 
 
 
@@ -241,7 +235,6 @@ public function update(Request $request, ManagerRegistry $doctrine, string $emai
         'mobile' => $user->getMobile(),
         'password' => $user->getpassword(),
         'roles' => $user->getRoles(),
-        'notfication' => $user->isNotfication(),
 
     ]]);
 }

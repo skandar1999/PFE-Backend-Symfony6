@@ -33,8 +33,8 @@ class Dossier
     #[ORM\Column(type: 'boolean', options: ['default' => true])]
     private bool $status = true;
     
-    #[ORM\Column]
-    private ?bool $versionning = null;
+    #[ORM\Column(type: 'boolean', options: ['default' => false], nullable: true)]
+    private ?bool $versionning = false;
 
     public function __construct()
     {
@@ -135,4 +135,3 @@ class Dossier
     }
    
 }
-

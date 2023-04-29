@@ -6,10 +6,12 @@ use App\Entity\File;
 use App\Entity\User;
 use App\Entity\Dossier;
 
+use App\Entity\SousDossier;
 use App\Repository\FileRepository;
 use App\Repository\UserRepository;
 use App\Repository\DossierRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use App\Repository\SousDossierRepository;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Mailer\MailerInterface;
@@ -24,6 +26,7 @@ use Symfony\Component\Validator\Exception\InvalidArgumentException;
 
 class DossierController extends AbstractController
 {
+
     #[Route('/createdossier/{email}', name: 'dossier-create', methods:'POST')]
     public function new(string $email,Request $request, EntityManagerInterface $entityManager)
 {
@@ -56,6 +59,9 @@ class DossierController extends AbstractController
 
     
 }
+
+
+ 
 
 
 #[Route('/getfolder/{email}', name: 'get_folder_files', methods: ['GET'])]
@@ -249,6 +255,53 @@ public function getFilesByFolder(Dossier $folder): Response
     }
     
 
+
+    #[Route('/FileuploadAndReplace/{id}', name: 'Fileuploadever_file', methods: ['POST'])]
+    public function uploadFilever(int $id, Request $request, EntityManagerInterface $entityManager, Filesystem $filesystem): Response
+    {
+        // Load the dossier by ID
+        $dossier = $entityManager->getRepository(Dossier::class)->find($id);
+        if (!$dossier) {
+            throw $this->createNotFoundException('Dossier not found');
+        }
+    
+        // Get the uploaded file and its properties
+        $uploadedFile = $request->files->get('files');
+        $name = $request->request->get('name') ?? $uploadedFile->getClientOriginalName();
+        $size = $uploadedFile->getSize();
+    
+        // Check if a file with the given name already exists in the database for this dossier
+        $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $name, 'dossier' => $dossier]);
+        foreach ($existingFiles as $existingFile) {
+            
+            // Delete the existing file
+            $path = $existingFile->getPath();
+            $filesystem->remove($path);
+            $entityManager->remove($existingFile);
+        }
+    
+        // Create a new File entity and set its properties
+        $file = new File();
+        $file->setName($name);
+        $file->setDate(new \DateTime());
+        $file->setDossier($dossier);
+        $file->setVersion(1);
+        $file->setSize($size);
+        $sizeHumanReadable = $file->getSizeHumanReadable();
+        $file->setSize($sizeHumanReadable);
+    
+        // Move the uploaded file to a directory on the server
+        $uploadDir = $this->getParameter('uploads_directory');
+        $uploadedFile->move($uploadDir, $name);
+        $file->setPath($uploadDir.'/'.$name);
+    
+        // Persist the File entity to the database
+        $entityManager->persist($file);
+        $entityManager->flush();
+    
+        return new Response('File uploaded successfully.');
+    }   
+
   
     
 
@@ -265,9 +318,7 @@ public function getFilesByDossier(int $id, FileRepository $fileRepository): Json
     
     foreach ($files as $file) {
         $name = $file->getName();
-        $dossierVersionning = $file->getDossier()->getVersionning();
         
-        $name = $this->removeExtensionPart($name, $dossierVersionning);
         
         $responseData[] = [
             'id' => $file->getId(),
@@ -283,24 +334,6 @@ public function getFilesByDossier(int $id, FileRepository $fileRepository): Json
     return new JsonResponse($responseData);
 }
 
-private function removeExtensionPart(string $filename, bool $versionning): string
-{
-    // Remove the (2) part of the filename if the dossier status is true
-    if (!$versionning) {
-        $filename = preg_replace('/\s\(\d+\)\./', '.', $filename);
-    }
-        
-    // Extract the filename without its extension
-    $name = pathinfo($filename, PATHINFO_FILENAME);
-    
-    // Extract the extension of the filename
-    $extension = pathinfo($filename, PATHINFO_EXTENSION);
-    
-    // Combine the name and extension to form the new filename
-    $newFilename = $name . '.' . $extension;
-    
-    return $newFilename;
-}
 
 
 
@@ -437,4 +470,10 @@ public function restaurerfile(int $id, EntityManagerInterface $entityManager, Ma
         return new Response('Versioning status updated successfully', Response::HTTP_OK);
     }
     
+
+
+
+    
+
+
 }
