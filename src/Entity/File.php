@@ -42,6 +42,9 @@ class File
     #[ORM\Column(type: 'string', length: 20)]
     private ?string $size = null;
 
+    #[ORM\Column]
+    private ?int $codefile = null;
+
     public function getId(): ?int
     {
         return $this->id;
@@ -156,5 +159,17 @@ class File
         }
         
         return round($size, 2) . ' ' . $units[$unitIndex];
+    }
+
+    public function getCodefile(): ?int
+    {
+        return $this->codefile;
+    }
+
+    public function setCodefile(int $codefile): self
+    {
+        $this->codefile = $codefile;
+
+        return $this;
     }
 }

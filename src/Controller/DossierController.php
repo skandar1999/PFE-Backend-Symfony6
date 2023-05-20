@@ -201,7 +201,7 @@ public function getFilesByFolder(Dossier $folder): Response
         $uploadedFile = $request->files->get('file');
         $name = $request->request->get('name') ?? $uploadedFile->getClientOriginalName();
         $size = $uploadedFile->getSize();
-
+    
         $file = new File();
         $file->setName($name);
         $file->setSize($size);
@@ -210,8 +210,13 @@ public function getFilesByFolder(Dossier $folder): Response
         $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $name, 'dossier' => $dossier], ['version' => 'DESC']);
         if ($existingFiles) {
             $version = $existingFiles[0]->getVersion() + 1;
+            $codefile = $existingFiles[0]->getCodefile();
+            $existe = true;
         } else {
             $version = 1;
+            $randomBytes = random_bytes(5);
+            $codefile = bin2hex($randomBytes);
+            $existe = false;
         }
     
         // Append the version number to the file name
@@ -236,12 +241,14 @@ public function getFilesByFolder(Dossier $folder): Response
         // Create a new File entity and set its properties
         $file = new File();
         $file->setName($name);
-        $file->setDate(new \DateTime());
+        $file->setDate(new \DateTime('now', new \DateTimeZone('Europe/Paris')));
         $file->setUser($this->getUser());
         $file->setDossier($dossier); // Set the dossier of the file
         $file->setVersion($version);
+        $file->setCodefile(intval($codefile));
+    
         $file->setSize($sizeHumanReadable);
-
+    
         // Move the uploaded file to a directory on the server
         $uploadDir = $this->getParameter('uploads_directory');
         $uploadedFile->move($uploadDir, $name);
@@ -251,57 +258,89 @@ public function getFilesByFolder(Dossier $folder): Response
         $entityManager->persist($file);
         $entityManager->flush();
     
-        return new Response('File uploaded successfully.');
+        $responseData = [
+            'message' => 'File uploaded successfully.',
+            'existe' => $existe,
+        ];
+    
+        return new Response(json_encode($responseData));
+
     }
-    
 
 
-    #[Route('/FileuploadAndReplace/{id}', name: 'Fileuploadever_file', methods: ['POST'])]
-    public function uploadFilever(int $id, Request $request, EntityManagerInterface $entityManager, Filesystem $filesystem): Response
+    #[Route('/checkfile/{id}', name: 'check', methods: ['POST'])]
+    public function checkFileExists(Request $request, $id)
     {
-        // Load the dossier by ID
-        $dossier = $entityManager->getRepository(Dossier::class)->find($id);
-        if (!$dossier) {
-            throw $this->createNotFoundException('Dossier not found');
-        }
-    
-        // Get the uploaded file and its properties
-        $uploadedFile = $request->files->get('files');
-        $name = $request->request->get('name') ?? $uploadedFile->getClientOriginalName();
-        $size = $uploadedFile->getSize();
-    
-        // Check if a file with the given name already exists in the database for this dossier
-        $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $name, 'dossier' => $dossier]);
-        foreach ($existingFiles as $existingFile) {
-            
-            // Delete the existing file
-            $path = $existingFile->getPath();
-            $filesystem->remove($path);
-            $entityManager->remove($existingFile);
-        }
-    
-        // Create a new File entity and set its properties
-        $file = new File();
-        $file->setName($name);
-        $file->setDate(new \DateTime());
-        $file->setDossier($dossier);
-        $file->setVersion(1);
-        $file->setSize($size);
-        $sizeHumanReadable = $file->getSizeHumanReadable();
-        $file->setSize($sizeHumanReadable);
-    
-        // Move the uploaded file to a directory on the server
-        $uploadDir = $this->getParameter('uploads_directory');
-        $uploadedFile->move($uploadDir, $name);
-        $file->setPath($uploadDir.'/'.$name);
-    
-        // Persist the File entity to the database
-        $entityManager->persist($file);
-        $entityManager->flush();
-    
-        return new Response('File uploaded successfully.');
-    }   
+        // Get the uploaded file
+        $uploadedFile = $request->files->get('file');
+        $fileName = $uploadedFile->getClientOriginalName();
 
+        // Set the path to the current folder
+        $folderPath = __DIR__ . '/'; // Adjust this path as needed
+
+        $fileExists = file_exists($folderPath . $fileName);
+
+    return new JsonResponse(['exists' => $fileExists]);
+    }
+
+    
+
+
+
+
+
+    
+
+        // FileuploadAndReplace as dossierID
+        #[Route('/FileuploadAndReplace/{id}', name: 'Fileuploadever_file', methods: ['POST'])]
+        public function uploadFilever(int $id, Request $request, EntityManagerInterface $entityManager, Filesystem $filesystem): Response
+        {
+            // Load the dossier by ID
+            $dossier = $entityManager->getRepository(Dossier::class)->find($id);
+            if (!$dossier) {
+                throw $this->createNotFoundException('Dossier not found');
+            }
+        
+            // Get the uploaded file and its properties
+            $uploadedFile = $request->files->get('files');
+            $name = $request->request->get('name') ?? $uploadedFile->getClientOriginalName();
+            $size = $uploadedFile->getSize();
+        
+            // Check if a file with the given name already exists in the database for this dossier
+            $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $name, 'dossier' => $dossier]);
+            foreach ($existingFiles as $existingFile) {
+                
+                // Delete the existing file
+                $path = $existingFile->getPath();
+                $filesystem->remove($path);
+                $entityManager->remove($existingFile);
+            }
+            
+            $randomBytes = random_bytes(5);
+            $codefile = bin2hex($randomBytes);
+        
+            // Create a new File entity and set its properties
+            $file = new File();
+            $file->setName($name);
+            $file->setDate(new \DateTime('now', new \DateTimeZone('Europe/Paris')));
+            $file->setDossier($dossier);
+            $file->setVersion(1);
+            $file->setSize($size);
+            $sizeHumanReadable = $file->getSizeHumanReadable();
+            $file->setSize($sizeHumanReadable);
+            $file->setCodefile(intval(bin2hex($randomBytes)));
+
+            // Move the uploaded file to a directory on the server
+            $uploadDir = $this->getParameter('uploads_directory');
+            $uploadedFile->move($uploadDir, $name);
+            $file->setPath($uploadDir.'/'.$name);
+        
+            // Persist the File entity to the database
+            $entityManager->persist($file);
+            $entityManager->flush();
+        
+            return new Response('File uploaded successfully.');
+        }   
   
     
 

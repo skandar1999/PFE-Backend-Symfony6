@@ -354,24 +354,25 @@ public function uploadImage(string $email, Request $request, EntityManagerInterf
 }
 
 
-
-/*
-#[Route("toggle-versioning/{email}", name:"user_toggle_versioning", methods:["PUT"])]
-     
-    public function toggleVersioning(string $email, Request $request, EntityManagerInterface $entityManager): Response
-    {
-        // Find the user you want to update
-        $user = $entityManager->getRepository(User::class)->findOneBy(['email' => $email]);
-        if (!$user) {
-            throw $this->createNotFoundException('User not found');
-        }
-
-        // Toggle the versioning status
-        $user->setNotfication(!$user->isNotfication());
-
-        $entityManager->flush();
-
-        return new Response('Versioning status updated successfully', Response::HTTP_OK);
+#[Route('/supprimerimage/{email}', name: 'supprimerimage', methods: ['POST'])]
+public function updateProfilePicture(string $email, Request $request, EntityManagerInterface $entityManager): Response
+{
+    // Find the user you want to update
+    $user = $entityManager->getRepository(User::class)->findOneBy(['email' => $email]);
+    if (!$user) {
+        throw $this->createNotFoundException('User not found');
     }
-    */
+
+    // Set the user's new image
+    $user->setImage('user.jpg');
+
+    // Save the changes to the database
+    $entityManager->flush();
+
+    return new Response('Image uploaded successfully', Response::HTTP_OK);
+}
+
+
+
+
 }

@@ -1,7 +1,0 @@
-teld not specify a value for this directive as PHP will
-; attempt to use the OS-managed cert stores in its absence. If specified,
-; this value may still be overridden on a per-stream basis via the "capath"
-; SSL stream context option.
-;openssl.capath=
-
-[ffi]

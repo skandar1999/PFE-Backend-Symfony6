@@ -25,7 +25,7 @@ class FileController extends AbstractController
 {
     
     #[Route('/Fileuploade/{email}', name: 'upload_file', methods: ['POST'])]
-public function uploadFile(string $email, Request $request, EntityManagerInterface $entityManager): Response
+    public function uploadFile(string $email, Request $request, EntityManagerInterface $entityManager): Response
 {
     $user = $entityManager->getRepository(User::class)->findOneBy(['email' => $email]);
     if (!$user) {
@@ -35,64 +35,62 @@ public function uploadFile(string $email, Request $request, EntityManagerInterfa
     $uploadedFile = $request->files->get('files');
     $name = $request->request->get('name') ?? $uploadedFile->getClientOriginalName();
     $size = $uploadedFile->getSize();
-       
 
     // Check if a file with the given name already exists in the database for this user
-    $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $name, 'user' => $user], ['version' => 'DESC']);
+    $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $name, 'user' => $user, 'status' => true], ['version' => 'DESC']);
     if ($existingFiles) {
         $version = $existingFiles[0]->getVersion() + 1;
+        $codefile = $existingFiles[0]->getCodefile();
     } else {
-        $version = 0;
+        $version = 1;
+        $randomBytes = random_bytes(5);
+        $codefile = bin2hex($randomBytes);
     }
 
     // Append the version number to the file name
-    $version = 1;
     $originalName = $uploadedFile->getClientOriginalName();
     $parts = pathinfo($originalName);
     $extension = isset($parts['extension']) ? '.' . $parts['extension'] : '';
     $basename = basename($originalName, $extension);
+
     // Check if a file with the given name already exists in the database for this user
-    $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $originalName, 'user' => $user]);
+    $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $originalName, 'user' => $user, 'status' => true]);
     if ($existingFiles) {
         $i = 2;
         do {
             $name = $basename . ' (' . $i . ')'  . $extension;
-            $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $name, 'user' => $user]);
+            $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $name, 'user' => $user, 'status' => true]);
             $i++;
         } while ($existingFiles);
         $version = $i - 1;
     } else {
         $name = $originalName;
     }
-    
-    // Create a new File entity and set its properties
+
     $file = new File();
     $file->setName($name);
     $file->setDate(new \DateTime());
     $file->setUser($user);
     $file->setVersion($version);
+    $file->setCodefile(intval($codefile));
     $file->setSize($size);
     $sizeHumanReadable = $file->getSizeHumanReadable();
     $file->setSize($sizeHumanReadable);
 
+    // Move the uploaded file to a directory on the server
+    $uploadDir = $this->getParameter('uploads_directory');
+    $uploadedFile->move($uploadDir, $name);
+    $file->setPath($uploadDir.'/'.$name);
 
-// Move the uploaded file to a directory on the server
-$uploadDir = $this->getParameter('uploads_directory');
-$uploadedFile->move($uploadDir, $name);
-$file->setPath($uploadDir.'/'.$name);
+    // Persist the File entity to the database
+    $entityManager->persist($file);
+    $entityManager->flush();
 
-// Persist the File entity to the database
-$entityManager->persist($file);
-$entityManager->flush();
-
-return new Response('File uploaded successfully.');
+    return new Response('File uploaded successfully.');
 }
+
     
     
-
-
-
-
 
 #[Route('/getfiles/{email}', name: 'get_user_files', methods: ['GET'])]
 public function getUserFiles(string $email, Request $request, EntityManagerInterface $entityManager): JsonResponse
@@ -146,6 +144,8 @@ public function archiverfile(int $id, EntityManagerInterface $entityManager, Mai
     if (!$file) {
         throw $this->createNotFoundException('File not found');
     }
+
+   
 
     // Update the status to false
     $file->setStatus(false);
