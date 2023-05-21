@@ -269,18 +269,20 @@ public function getFilesByFolder(Dossier $folder): Response
 
 
     #[Route('/checkfile/{id}', name: 'check', methods: ['POST'])]
-    public function checkFileExists(Request $request, $id)
+    public function checkFileExists(int $id, Request $request, EntityManagerInterface $entityManager)
     {
-        // Get the uploaded file
+        $dossier = $entityManager->getRepository(Dossier::class)->find($id);
+        if (!$dossier) {
+            throw $this->createNotFoundException('Dossier not found');
+        }
+    
         $uploadedFile = $request->files->get('file');
-        $fileName = $uploadedFile->getClientOriginalName();
-
-        // Set the path to the current folder
-        $folderPath = __DIR__ . '/'; // Adjust this path as needed
-
-        $fileExists = file_exists($folderPath . $fileName);
-
-    return new JsonResponse(['exists' => $fileExists]);
+        $name = $request->request->get('name') ?? $uploadedFile->getClientOriginalName();
+    
+        $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $name, 'dossier' => $dossier], ['version' => 'DESC']);
+        $fileExists = !empty($existingFiles);
+    
+        return new JsonResponse(['exists' => $fileExists]);
     }
 
     

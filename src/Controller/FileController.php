@@ -89,7 +89,77 @@ class FileController extends AbstractController
     return new Response('File uploaded successfully.');
 }
 
+
+
+
+#[Route('/checkfileUser/{email}', name: 'checkfileforuser', methods: ['POST'])]
+    public function checkFileExists(string $email, Request $request, EntityManagerInterface $entityManager)
+    {
+        $user = $entityManager->getRepository(User::class)->findOneBy(['email' => $email]);
+    if (!$user) {
+        throw $this->createNotFoundException('User not found');
+    }
     
+        $uploadedFile = $request->files->get('file');
+        $name = $request->request->get('name') ?? $uploadedFile->getClientOriginalName();
+    
+        $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $name, 'user' => $user], ['version' => 'DESC']);
+        $fileExists = !empty($existingFiles);
+    
+        return new JsonResponse(['exists' => $fileExists]);
+    }
+
+
+
+// FileuploadAndReplace as dossierID
+#[Route('/FileuploadAndReplaceDocs/{email}', name: 'Fileuploadever_file', methods: ['POST'])]
+public function uploadFilever(string $email, Request $request, EntityManagerInterface $entityManager, Filesystem $filesystem): Response
+{
+    // Load the dossier by ID
+    $user = $entityManager->getRepository(User::class)->findOneBy(['email' => $email]);
+    if (!$user) {
+        throw $this->createNotFoundException('User not found');
+    }
+
+    // Get the uploaded file and its properties
+    $uploadedFile = $request->files->get('files');
+    $name = $request->request->get('name') ?? $uploadedFile->getClientOriginalName();
+    $size = $uploadedFile->getSize();
+
+    // Check if a file with the given name already exists in the database for this dossier
+    $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $name, 'dossier' => $user]);
+    foreach ($existingFiles as $existingFile) {
+        
+        // Delete the existing file
+        $path = $existingFile->getPath();
+        $filesystem->remove($path);
+        $entityManager->remove($existingFile);
+    }
+    
+    $randomBytes = random_bytes(5);
+    $codefile = bin2hex($randomBytes);
+
+    // Create a new File entity and set its properties
+    $file = new File();
+    $file->setName($name);
+    $file->setDate(new \DateTime('now', new \DateTimeZone('Europe/Paris')));
+    $file->setVersion(1);
+    $file->setSize($size);
+    $sizeHumanReadable = $file->getSizeHumanReadable();
+    $file->setSize($sizeHumanReadable);
+    $file->setCodefile(intval(bin2hex($randomBytes)));
+
+    // Move the uploaded file to a directory on the server
+    $uploadDir = $this->getParameter('uploads_directory');
+    $uploadedFile->move($uploadDir, $name);
+    $file->setPath($uploadDir.'/'.$name);
+
+    // Persist the File entity to the database
+    $entityManager->persist($file);
+    $entityManager->flush();
+
+    return new Response('File uploaded successfully.');
+}   
     
 
 #[Route('/getfiles/{email}', name: 'get_user_files', methods: ['GET'])]
