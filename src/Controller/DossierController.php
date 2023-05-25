@@ -446,7 +446,7 @@ public function deleteFilesByDossierr(int $id, FileRepository $fileRepository, E
 
 
 //DELETE files whose the same codefile with test stauts of versionnig
-#[Route('/DeletefilesSamecode/{id}', name: 'DELETEFilesByDossiercode1', methods: ['POST'])]
+#[Route('/DeletefilesSamecode/{id}', name: 'DELETEFilesByDossiercode1', methods: ['DELETE'])]
 public function getFilesByDossierr(int $id,  DossierRepository $dossierRepository,FileRepository $fileRepository, EntityManagerInterface $entityManager): JsonResponse
 {
     $dossier = $dossierRepository->find($id);

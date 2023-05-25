@@ -281,6 +281,8 @@ public function deletefilefromarchive(int $id, EntityManagerInterface $entityMan
     return new JsonResponse(['message' => 'File deleted successfully']);
 }
 
+
+
 #[Route('/rename_file/{id}', name: 'rename_file', methods: ['POST'])]
 public function renameFile(Request $request, EntityManagerInterface $entityManager, int $id): Response
 {
