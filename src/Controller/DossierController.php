@@ -188,6 +188,46 @@ public function getFilesByFolder(Dossier $folder): Response
 }
 
 
+    
+
+
+    #[Route('/checkfile/{id}', name: 'checkindossier', methods: ['POST'])]
+    public function checkFileExists(int $id, Request $request, EntityManagerInterface $entityManager)
+    {
+        $dossier = $entityManager->getRepository(Dossier::class)->find($id);
+        if (!$dossier) {
+            throw $this->createNotFoundException('Dossier not found');
+        }
+    
+        $uploadedFile = $request->files->get('file');
+        $name = $request->request->get('name') ?? $uploadedFile->getClientOriginalName();
+    
+        $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $name, 'dossier' => $dossier], ['version' => 'DESC']);
+        $fileExists = !empty($existingFiles);
+    
+        return new JsonResponse(['exists' => $fileExists]);
+    }
+
+
+
+    #[Route('/checkfolder/{email}', name: 'check', methods: ['POST'])]
+    public function checkFolderExists(string $email, Request $request, EntityManagerInterface $entityManager)
+    {
+        $user = $entityManager->getRepository(User::class)->findOneBy(['email' => $email]);
+        if (!$user) {
+            throw $this->createNotFoundException('User not found');
+        }
+    
+        $name = $request->request->get('name');
+    
+        $existingFolder = $entityManager->getRepository(Dossier::class)->findOneBy(['namedossier' => $name, 'user' => $user]);
+        $folderExists = $existingFolder !== null;
+    
+        return new JsonResponse(['exists' => $folderExists]);
+    }
+    
+    
+    
     // uploade file in dosssier
     #[Route('/dossiers/{id}', name: 'add_file_to_dossier', methods: ['POST'])]
     public function addFileToDossier(int $id, Request $request, EntityManagerInterface $entityManager): Response
@@ -267,83 +307,67 @@ public function getFilesByFolder(Dossier $folder): Response
 
     }
 
-
-    #[Route('/checkfile/{id}', name: 'check', methods: ['POST'])]
-    public function checkFileExists(int $id, Request $request, EntityManagerInterface $entityManager)
-    {
-        $dossier = $entityManager->getRepository(Dossier::class)->find($id);
-        if (!$dossier) {
-            throw $this->createNotFoundException('Dossier not found');
-        }
-    
-        $uploadedFile = $request->files->get('file');
-        $name = $request->request->get('name') ?? $uploadedFile->getClientOriginalName();
-    
-        $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $name, 'dossier' => $dossier], ['version' => 'DESC']);
-        $fileExists = !empty($existingFiles);
-    
-        return new JsonResponse(['exists' => $fileExists]);
-    }
-
     
 
 
+    //to correctly delete the files with the same code file except for the one with the latest date,
+    //you need to adjust the code by first retrieving all files with the same code file, and then comparing their
+    // dates. Here's the modified code:
+
+       
 
 
-
-    
 
         // FileuploadAndReplace as dossierID
-        #[Route('/FileuploadAndReplace/{id}', name: 'Fileuploadever_file', methods: ['POST'])]
+        #[Route('/FileuploadAndReplace/{id}', name: 'Fileuploadever_filee', methods: ['POST'])]
         public function uploadFilever(int $id, Request $request, EntityManagerInterface $entityManager, Filesystem $filesystem): Response
         {
             // Load the dossier by ID
             $dossier = $entityManager->getRepository(Dossier::class)->find($id);
-            if (!$dossier) {
-                throw $this->createNotFoundException('Dossier not found');
-            }
-        
-            // Get the uploaded file and its properties
-            $uploadedFile = $request->files->get('files');
-            $name = $request->request->get('name') ?? $uploadedFile->getClientOriginalName();
-            $size = $uploadedFile->getSize();
-        
-            // Check if a file with the given name already exists in the database for this dossier
-            $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $name, 'dossier' => $dossier]);
-            foreach ($existingFiles as $existingFile) {
-                
-                // Delete the existing file
-                $path = $existingFile->getPath();
-                $filesystem->remove($path);
-                $entityManager->remove($existingFile);
-            }
-            
-            $randomBytes = random_bytes(5);
-            $codefile = bin2hex($randomBytes);
-        
-            // Create a new File entity and set its properties
-            $file = new File();
-            $file->setName($name);
-            $file->setDate(new \DateTime('now', new \DateTimeZone('Europe/Paris')));
-            $file->setDossier($dossier);
-            $file->setVersion(1);
-            $file->setSize($size);
-            $sizeHumanReadable = $file->getSizeHumanReadable();
-            $file->setSize($sizeHumanReadable);
-            $file->setCodefile(intval(bin2hex($randomBytes)));
+    if (!$dossier) {
+        throw $this->createNotFoundException('Dossier not found');
+    }
 
-            // Move the uploaded file to a directory on the server
-            $uploadDir = $this->getParameter('uploads_directory');
-            $uploadedFile->move($uploadDir, $name);
-            $file->setPath($uploadDir.'/'.$name);
-        
-            // Persist the File entity to the database
-            $entityManager->persist($file);
-            $entityManager->flush();
-        
-            return new Response('File uploaded successfully.');
-        }   
-  
+    // Get the uploaded file and its properties
+    $uploadedFile = $request->files->get('files');
+    $name = $request->request->get('name') ?? $uploadedFile->getClientOriginalName();
+    $size = $uploadedFile->getSize();
+
+    // Check if a file with the given name already exists in the database for this dossier
+    $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $name, 'dossier' => $dossier]);
+    $codefile = null;
+    if ($existingFiles) {
+        $existingFile = $existingFiles[0];
+        $codefile = $existingFile->getCodefile();
+
+        // Delete the existing file
+        $path = $existingFile->getPath();
+        $filesystem->remove($path);
+        $entityManager->remove($existingFile);
+    }
+
+    // Create a new File entity and set its properties
+    $file = new File();
+    $file->setName($name);
+    $file->setDate(new \DateTime('now', new \DateTimeZone('Europe/Paris')));
+    $file->setDossier($dossier);
+    $file->setVersion(1);
+    $file->setSize($size);
+    $sizeHumanReadable = $file->getSizeHumanReadable();
+    $file->setSize($sizeHumanReadable);
+    $file->setCodefile($codefile);
+
+    // Move the uploaded file to a directory on the server
+    $uploadDir = $this->getParameter('uploads_directory');
+    $uploadedFile->move($uploadDir, $name);
+    $file->setPath($uploadDir.'/'.$name);
+
+    // Persist the File entity to the database
+    $entityManager->persist($file);
+    $entityManager->flush();
+
+    return new Response('File uploaded successfully.');
+}
     
 
     #[Route('/FilesByDossiers/{id}', name: 'FilesByDossier', methods: ['GET'])]
@@ -368,6 +392,7 @@ public function getFilesByDossier(int $id, FileRepository $fileRepository): Json
             'date' => $file->getDate() ? $file->getDate()->format('d-m-y H:i') : null,
             'status' => $file->getStatus(),
             'size'=> $file->getSize(),
+            'codefile'=> $file-> getCodefile()
         ];
     }
     
@@ -376,7 +401,101 @@ public function getFilesByDossier(int $id, FileRepository $fileRepository): Json
 }
 
 
+/*
+//DELETE files whose the same codefile
+#[Route('/DeletefilesSamecode/{id}', name: 'DELETEFilesByDossiercode1', methods: ['POST'])]
+public function deleteFilesByDossierr(int $id, FileRepository $fileRepository, EntityManagerInterface $entityManager): JsonResponse
+{
+    $files = $fileRepository->findBy(['dossier' => $id], ['date' => 'DESC']);
 
+    if (!$files) {
+        return new JsonResponse(['error' => 'No files found for dossier'], Response::HTTP_NOT_FOUND);
+    }
+
+    $codefileCounts = [];
+    $responseData = [];
+
+    foreach ($files as $file) {
+        $codefile = $file->getCodefile();
+
+        // Check if the codefile already exists in the counts array
+        if (isset($codefileCounts[$codefile])) {
+            $codefileCounts[$codefile]++;
+        } else {
+            $codefileCounts[$codefile] = 1;
+        }
+
+        // Add the file to the response data if it occurs more than once
+        if ($codefileCounts[$codefile] > 1) {
+            $responseData[] = [
+                'id' => $file->getId(),
+                'name' => $file->getName(),
+                'codefile' => $codefile
+            ];
+
+            // Remove the file from the database
+            $entityManager->remove($file);
+        }
+    }
+
+    $entityManager->flush(); // Commit the changes to the database
+
+    return new JsonResponse($responseData);
+}
+*/
+
+
+//DELETE files whose the same codefile with test stauts of versionnig
+#[Route('/DeletefilesSamecode/{id}', name: 'DELETEFilesByDossiercode1', methods: ['POST'])]
+public function getFilesByDossierr(int $id,  DossierRepository $dossierRepository,FileRepository $fileRepository, EntityManagerInterface $entityManager): JsonResponse
+{
+    $dossier = $dossierRepository->find($id);
+
+    if (!$dossier) {
+        return new JsonResponse(['error' => 'Dossier not found'], Response::HTTP_NOT_FOUND);
+    }
+
+    if (!$dossier->getVersionning()) {
+        return new JsonResponse(['message' => 'le versionng de ce Dossier est fermer '], Response::HTTP_BAD_REQUEST);
+    }
+   
+
+    $files = $fileRepository->findBy(['dossier' => $id], ['date' => 'DESC']);
+
+    if (!$files) {
+        return new JsonResponse(['error' => 'No files found for dossier'], Response::HTTP_NOT_FOUND);
+    }
+
+    $codefileCounts = [];
+    $responseData = [];
+
+    foreach ($files as $file) {
+        $codefile = $file->getCodefile();
+
+        // Check if the codefile already exists in the counts array
+        if (isset($codefileCounts[$codefile])) {
+            $codefileCounts[$codefile]++;
+        } else {
+            $codefileCounts[$codefile] = 1;
+        }
+
+        // Add the file to the response data if it occurs more than once
+        if ($codefileCounts[$codefile] > 1) {
+            $responseData[] = [
+                'id' => $file->getId(),
+                'name' => $file->getName(),
+                'codefile' => $codefile
+            ];
+
+            // Remove the file from the database
+            $entityManager->remove($file);
+        }
+    }
+
+    $entityManager->flush(); // Commit the changes to the database
+
+    return new JsonResponse($responseData);
+}
 
 
 //get dosssier name
