@@ -447,7 +447,7 @@ public function deleteFilesByDossierr(int $id, FileRepository $fileRepository, E
 
 //DELETE files whose the same codefile with test stauts of versionnig
 #[Route('/DeletefilesSamecode/{id}', name: 'DELETEFilesByDossiercode1', methods: ['DELETE'])]
-public function getFilesByDossierr(int $id,  DossierRepository $dossierRepository,FileRepository $fileRepository, EntityManagerInterface $entityManager): JsonResponse
+public function getFilesByDossierr(int $id, DossierRepository $dossierRepository, FileRepository $fileRepository, EntityManagerInterface $entityManager): JsonResponse
 {
     $dossier = $dossierRepository->find($id);
 
@@ -456,9 +456,8 @@ public function getFilesByDossierr(int $id,  DossierRepository $dossierRepositor
     }
 
     if (!$dossier->getVersionning()) {
-        return new JsonResponse(['message' => 'le versionng de ce Dossier est fermer '], Response::HTTP_BAD_REQUEST);
+        return new JsonResponse(['message' => 'Le versioning de ce dossier est fermé'], Response::HTTP_BAD_REQUEST);
     }
-   
 
     $files = $fileRepository->findBy(['dossier' => $id], ['date' => 'DESC']);
 
@@ -487,6 +486,13 @@ public function getFilesByDossierr(int $id,  DossierRepository $dossierRepositor
                 'codefile' => $codefile
             ];
 
+            // Remove the file from the file system
+            $filePath = $file->getPath();
+                        if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+           
+   
             // Remove the file from the database
             $entityManager->remove($file);
         }
