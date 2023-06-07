@@ -87,7 +87,7 @@ public function userCreate(Request $request): Response
 
      return new JsonResponse([
          'status'=>true,
-         'message'=>'user créé avec succès'
+         'message'=>'utilisateur créé avec succès'
      ]);
    }
 }
@@ -238,8 +238,6 @@ public function update(Request $request, ManagerRegistry $doctrine, string $emai
 
     ]]);
 }
-
-
 
 
 

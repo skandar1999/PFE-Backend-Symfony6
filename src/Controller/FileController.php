@@ -2,24 +2,29 @@
 
 namespace App\Controller;
 
+use finfo;
 use App\Entity\File;
 use App\Entity\User;
+use Box\Spout\Common\Type;
 use Symfony\Component\Mime\Email;
 use App\Repository\FileRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
+use phpDocumentor\Reflection\Types\Integer;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Mailer\MailerInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Box\Spout\Reader\Common\Creator\ReaderFactory;
+use Box\Spout\Writer\Common\Creator\WriterFactory;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
+use Box\Spout\Reader\Common\Creator\ReaderEntityFactory;
+use Box\Spout\Writer\Common\Creator\WriterEntityFactory;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use finfo;
-use phpDocumentor\Reflection\Types\Integer;
 
 class FileController extends AbstractController
 {
@@ -43,7 +48,7 @@ class FileController extends AbstractController
         $codefile = $existingFiles[0]->getCodefile();
     } else {
         $version = 1;
-        $randomBytes = random_bytes(5);
+        $randomBytes = random_int(1100, 9999);
         $codefile = bin2hex($randomBytes);
     }
 
@@ -72,7 +77,7 @@ class FileController extends AbstractController
     $file->setDate(new \DateTime());
     $file->setUser($user);
     $file->setVersion($version);
-    $file->setCodefile(intval($codefile));
+    $file->setCodefile(strval($codefile));
     $file->setSize($size);
     $sizeHumanReadable = $file->getSizeHumanReadable();
     $file->setSize($sizeHumanReadable);
@@ -429,6 +434,74 @@ public function getpathofile(Request $request, EntityManagerInterface $entityMan
         'id' => $file->getPath(),
         'fileName' => $file->getName(),    
     ]);
+}
+
+/*
+
+#[Route('/update-file/{id}', name: 'updatefileee', methods: ['POST'])]
+public function updateFileAction(Request $request, EntityManagerInterface $entityManager, int $id): Response
+{
+    // Create the absolute file path
+    $file = $entityManager->getRepository(File::class)->find($id);
+    if (!$file) {
+        throw $this->createNotFoundException('File not found');
+    }
+
+    // Verify if the file exists
+    if (!file_exists($file->getPath())) {
+        return new Response(json_encode(['error' => 'Le fichier n\'existe pas']), Response::HTTP_NOT_FOUND);
+    }
+
+    // Get the new content from the request
+    $jsonData = $request->getContent();
+    $data = json_decode($jsonData, true);
+    $newContent = $data['content'];
+    
+    // Modify the file content with Spout
+    $reader = ReaderEntityFactory::createXLSXReader();
+    $reader->open($file);
+    $writer = WriterEntityFactory::createXLSXWriter();
+    $writer->openToFile($file);
+
+    foreach ($reader->getSheetIterator() as $sheet) {
+        foreach ($sheet->getRowIterator() as $row) {
+            // Modify the content of the row with the new data
+            $rowData = $row->toArray();
+            $rowData[0] = $newContent;
+            $newRow = WriterEntityFactory::createRowFromArray($rowData);
+            $writer->addRow($newRow);
+        }
+    }
+
+    $reader->close();
+    $writer->close();
+
+    return new Response(json_encode(['success' => true]), Response::HTTP_OK);
+}
+*/
+
+#[Route('/samecodefile/{id}', name: 'same_code', methods: ['GET'])]
+public function samecodefile(Request $request, EntityManagerInterface $entityManager, int $id): JsonResponse
+{
+    $file = $entityManager->getRepository(File::class)->find($id);
+    if (!$file) {
+        throw $this->createNotFoundException('File not found');
+    }
+
+    // Get the code of the file
+    $code = $file->getCodefile();
+
+    // Find files with the same code
+    $filesWithSameCode = $entityManager->getRepository(File::class)->findBy(['codefile' => $code]);
+
+    // Get the names of the files
+    $fileNames = [];
+    foreach ($filesWithSameCode as $file) {
+        $fileNames[] = $file->getName();
+    }
+
+    // Return the names as a JSON response
+    return new JsonResponse($fileNames);
 }
 
 

@@ -27,6 +27,7 @@ use Symfony\Component\Validator\Exception\InvalidArgumentException;
 class DossierController extends AbstractController
 {
 
+    
     #[Route('/createdossier/{email}', name: 'dossier-create', methods:'POST')]
     public function new(string $email,Request $request, EntityManagerInterface $entityManager)
 {
@@ -254,10 +255,12 @@ public function getFilesByFolder(Dossier $folder): Response
             $existe = true;
         } else {
             $version = 1;
-            $randomBytes = random_bytes(5);
+            $randomBytes = random_int(1000, 9999);
             $codefile = bin2hex($randomBytes);
             $existe = false;
         }
+
+        
     
         // Append the version number to the file name
         $originalName = $uploadedFile->getClientOriginalName();
@@ -285,7 +288,7 @@ public function getFilesByFolder(Dossier $folder): Response
         $file->setUser($this->getUser());
         $file->setDossier($dossier); // Set the dossier of the file
         $file->setVersion($version);
-        $file->setCodefile(intval($codefile));
+        $file->setCodefile(strval($codefile));
     
         $file->setSize($sizeHumanReadable);
     
@@ -639,7 +642,32 @@ public function restaurerfile(int $id, EntityManagerInterface $entityManager, Ma
 
 
 
-    
+    #[Route('/samecodefileBydossier/{id}', name: 'same_codebydossier', methods: ['GET'])]
+public function samecodefile(Request $request, EntityManagerInterface $entityManager, int $id): JsonResponse
+{
+    // Find the dossier (folder) by its ID
+    $dossier = $entityManager->getRepository(Dossier::class)->find($id);
+    if (!$dossier) {
+        throw $this->createNotFoundException('Dossier not found');
+    }
+
+    // Find files associated with the dossier
+    $files = $entityManager->getRepository(File::class)->findBy(['dossier' => $dossier], ['date' => 'DESC']);
+
+    if (!$files) {
+        return new JsonResponse(['error' => 'No files found for dossier'], Response::HTTP_NOT_FOUND);
+    }
+
+    // Get the names of the files
+    $fileNames = [];
+    foreach ($files as $file) {
+        $fileNames[] = $file->getName();
+    }
+
+    // Return the names as a JSON response
+    return new JsonResponse($fileNames);
+}
+
 
 
 }
