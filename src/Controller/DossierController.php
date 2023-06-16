@@ -609,18 +609,23 @@ public function restaurerfile(int $id, EntityManagerInterface $entityManager, Ma
     $dossier = $entityManager->getRepository(Dossier::class)->find($id);
 
     if (!$dossier) {
-        throw $this->createNotFoundException('dossier not found');
+        throw $this->createNotFoundException('Folder not found');
+    }
+
+    $existingFolder = $entityManager->getRepository(Dossier::class)->findBy(['namedossier' => $dossier->getNamedossier(), 'user' => $user, 'status' => 1]);
+
+    if ($existingFolder) {
+        return new JsonResponse(['message' => 'Folder name already exists']);
     }
 
     // Update the status to false
     $dossier->setStatus(true);
-    $entityManager->persist($dossier);
     $entityManager->flush();
 
-   
-
-    return new JsonResponse(['message' => 'dossier status updated to false']);
+    return new JsonResponse(['message' => 'Dossier status updated to true']);
 }
+
+
 
 #[Route("toggle-versioning/{id}", name:"dossier_toggle_versioning", methods:["PUT"])]
      

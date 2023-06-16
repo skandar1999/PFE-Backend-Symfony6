@@ -101,14 +101,15 @@ class FileController extends AbstractController
     public function checkFileExists(string $email, Request $request, EntityManagerInterface $entityManager)
     {
         $user = $entityManager->getRepository(User::class)->findOneBy(['email' => $email]);
-    if (!$user) {
-        throw $this->createNotFoundException('User not found');
-    }
+        if (!$user) {
+            throw $this->createNotFoundException('User not found');
+        }
     
         $uploadedFile = $request->files->get('file');
         $name = $request->request->get('name') ?? $uploadedFile->getClientOriginalName();
     
-        $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $name, 'user' => $user], ['version' => 'DESC']);
+        // Check if a file with the given name and status == 1 exists for the user
+        $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $name, 'user' => $user, 'status' => 1], ['version' => 'DESC']);
         $fileExists = !empty($existingFiles);
     
         return new JsonResponse(['exists' => $fileExists]);
@@ -134,15 +135,15 @@ public function uploadFilever(string $email, Request $request, EntityManagerInte
     // Check if a file with the given name already exists in the database for this dossier
     $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $name, 'dossier' => $user]);
     foreach ($existingFiles as $existingFile) {
-        
+       
         // Delete the existing file
         $path = $existingFile->getPath();
         $filesystem->remove($path);
         $entityManager->remove($existingFile);
+
     }
     
-    $randomBytes = random_bytes(5);
-    $codefile = bin2hex($randomBytes);
+   
 
     // Create a new File entity and set its properties
     $file = new File();
@@ -152,7 +153,6 @@ public function uploadFilever(string $email, Request $request, EntityManagerInte
     $file->setSize($size);
     $sizeHumanReadable = $file->getSizeHumanReadable();
     $file->setSize($sizeHumanReadable);
-    $file->setCodefile(intval(bin2hex($randomBytes)));
 
     // Move the uploaded file to a directory on the server
     $uploadDir = $this->getParameter('uploads_directory');
@@ -344,12 +344,21 @@ public function restaurerfile(int $id, EntityManagerInterface $entityManager, Ma
         throw $this->createNotFoundException('File not found');
     }
 
-    // Update the status to false
+    // Check if a file with the given name and status == 1 exists for the user
+    $existingFiles = $entityManager->getRepository(File::class)->findBy(['name' => $file->getName(), 'user' => $user, 'status' => 1]);
+    $fileExists = !empty($existingFiles);
+
+    if ($fileExists) {
+        return new JsonResponse(['message' => 'File name already exists']);
+    }
+
+    // Update the status to 1 (true)
     $file->setStatus(true);
+
+    
+
     $entityManager->persist($file);
     $entityManager->flush();
-
-   
 
     return new JsonResponse(['message' => 'File status updated to true']);
 }
@@ -503,6 +512,10 @@ public function samecodefile(Request $request, EntityManagerInterface $entityMan
     // Return the names as a JSON response
     return new JsonResponse($fileNames);
 }
+
+
+
+
 
 
 
