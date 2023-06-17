@@ -220,8 +220,6 @@ public function archiverfile(int $id, EntityManagerInterface $entityManager, Mai
         throw $this->createNotFoundException('File not found');
     }
 
-   
-
     // Update the status to false
     $file->setStatus(false);
     $entityManager->persist($file);
@@ -272,8 +270,7 @@ public function deletefilefromarchive(int $id, EntityManagerInterface $entityMan
     if (!$file) {
         throw $this->createNotFoundException('File not found');
     }
-
-    // Remove the file from the server
+ // Remove the file from the server
     $filePath = $file->getPath();
     if (file_exists($filePath)) {
         unlink($filePath);
@@ -354,8 +351,6 @@ public function restaurerfile(int $id, EntityManagerInterface $entityManager, Ma
 
     // Update the status to 1 (true)
     $file->setStatus(true);
-
-    
 
     $entityManager->persist($file);
     $entityManager->flush();
@@ -446,7 +441,6 @@ public function getpathofile(Request $request, EntityManagerInterface $entityMan
 }
 
 /*
-
 #[Route('/update-file/{id}', name: 'updatefileee', methods: ['POST'])]
 public function updateFileAction(Request $request, EntityManagerInterface $entityManager, int $id): Response
 {
@@ -499,11 +493,9 @@ public function samecodefile(Request $request, EntityManagerInterface $entityMan
 
     // Get the code of the file
     $code = $file->getCodefile();
-
     // Find files with the same code
     $filesWithSameCode = $entityManager->getRepository(File::class)->findBy(['codefile' => $code]);
-
-    // Get the names of the files
+ // Get the names of the files
     $fileNames = [];
     foreach ($filesWithSameCode as $file) {
         $fileNames[] = $file->getName();

@@ -54,7 +54,7 @@ class ContactController extends AbstractController
 #[Route('/getallmessages', name: 'get_all_messages', methods:'GET')]
 public function getAllMessages(ContactRepository $contactRepository): JsonResponse
 {
-    $startDate = new \DateTime('-60 days'); // Get the date three days ago
+    $startDate = new \DateTime('-10 days'); // Get the date x days ago
     $endDate = new \DateTime(); // Get the current date
 
     $contacts = $contactRepository->createQueryBuilder('c')
@@ -101,7 +101,7 @@ public function delete( int $id , EntityManagerInterface $entityManager): Respon
 
 
 
-#[Route('/updateStatut/{id}', name: 'updateStatut-status', methods:'put')]
+#[Route('/updateStatut/{id}', name: 'updateStatut-status', methods:'PUT')]
 public function update(int $id , EntityManagerInterface $entityManager, Contact $contact): Response
 {   
 

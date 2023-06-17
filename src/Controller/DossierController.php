@@ -64,7 +64,6 @@ class DossierController extends AbstractController
 
  
 
-
 #[Route('/getfolder/{email}', name: 'get_folder_files', methods: ['GET'])]
 public function getUserFiles(string $email, EntityManagerInterface $entityManager): JsonResponse
 {
@@ -98,7 +97,6 @@ public function getUserFiles(string $email, EntityManagerInterface $entityManage
 
 
 #[Route('/deletefolder/{id}', name: 'delete_folder', methods: ['DELETE'])]
-
 public function deleteFile(int $id, EntityManagerInterface $entityManager): JsonResponse
 {
     $folder = $entityManager->getRepository(Dossier::class)->find($id);
@@ -119,19 +117,6 @@ public function deleteFile(int $id, EntityManagerInterface $entityManager): Json
 
     return new JsonResponse(['message' => 'Folder deleted successfully']);
 }
-
-
-/*
-#[Route("/folders/{id}", name: "get_files_by_folder_and_file",methods: ['GET'])]
-public function getFilesByFolderAndFile($id, $file_id, FileRepository $fileRepository): JsonResponse
-{
-    $files = $fileRepository->findBy(['folder' => $id, 'id' => $file_id]);
-    // rest of the code to return the file(s)
-    return new JsonResponse([]);
-
-}
-*/
-
 
 
 #[Route('/rename_folder/{id}', name: 'rename_folder', methods: ['POST'])]
@@ -189,8 +174,6 @@ public function getFilesByFolder(Dossier $folder): Response
 }
 
 
-    
-
 
     #[Route('/checkfile/{id}', name: 'checkindossier', methods: ['POST'])]
     public function checkFileExists(int $id, Request $request, EntityManagerInterface $entityManager)
@@ -221,7 +204,7 @@ public function getFilesByFolder(Dossier $folder): Response
     
         $name = $request->request->get('name');
     
-        $existingFolder = $entityManager->getRepository(Dossier::class)->findOneBy(['namedossier' => $name, 'user' => $user]);
+        $existingFolder = $entityManager->getRepository(Dossier::class)->findOneBy(['namedossier' => $name, 'user' => $user, 'status' => 1]);
         $folderExists = $existingFolder !== null;
     
         return new JsonResponse(['exists' => $folderExists]);
@@ -261,7 +244,6 @@ public function getFilesByFolder(Dossier $folder): Response
         }
 
         
-    
         // Append the version number to the file name
         $originalName = $uploadedFile->getClientOriginalName();
         $parts = pathinfo($originalName);
@@ -311,15 +293,6 @@ public function getFilesByFolder(Dossier $folder): Response
     }
 
     
-
-
-    //to correctly delete the files with the same code file except for the one with the latest date,
-    //you need to adjust the code by first retrieving all files with the same code file, and then comparing their
-    // dates. Here's the modified code:
-
-       
-
-
 
         // FileuploadAndReplace as dossierID
         #[Route('/FileuploadAndReplace/{id}', name: 'Fileuploadever_filee', methods: ['POST'])]
@@ -387,7 +360,6 @@ public function getFilesByDossier(int $id, FileRepository $fileRepository): Json
     foreach ($files as $file) {
         $name = $file->getName();
         
-        
         $responseData[] = [
             'id' => $file->getId(),
             'name' => $name,
@@ -399,53 +371,10 @@ public function getFilesByDossier(int $id, FileRepository $fileRepository): Json
         ];
     }
     
-    
     return new JsonResponse($responseData);
 }
 
 
-/*
-//DELETE files whose the same codefile
-#[Route('/DeletefilesSamecode/{id}', name: 'DELETEFilesByDossiercode1', methods: ['POST'])]
-public function deleteFilesByDossierr(int $id, FileRepository $fileRepository, EntityManagerInterface $entityManager): JsonResponse
-{
-    $files = $fileRepository->findBy(['dossier' => $id], ['date' => 'DESC']);
-
-    if (!$files) {
-        return new JsonResponse(['error' => 'No files found for dossier'], Response::HTTP_NOT_FOUND);
-    }
-
-    $codefileCounts = [];
-    $responseData = [];
-
-    foreach ($files as $file) {
-        $codefile = $file->getCodefile();
-
-        // Check if the codefile already exists in the counts array
-        if (isset($codefileCounts[$codefile])) {
-            $codefileCounts[$codefile]++;
-        } else {
-            $codefileCounts[$codefile] = 1;
-        }
-
-        // Add the file to the response data if it occurs more than once
-        if ($codefileCounts[$codefile] > 1) {
-            $responseData[] = [
-                'id' => $file->getId(),
-                'name' => $file->getName(),
-                'codefile' => $codefile
-            ];
-
-            // Remove the file from the database
-            $entityManager->remove($file);
-        }
-    }
-
-    $entityManager->flush(); // Commit the changes to the database
-
-    return new JsonResponse($responseData);
-}
-*/
 
 
 //DELETE files whose the same codefile with test stauts of versionnig
@@ -473,7 +402,6 @@ public function getFilesByDossierr(int $id, DossierRepository $dossierRepository
 
     foreach ($files as $file) {
         $codefile = $file->getCodefile();
-
         // Check if the codefile already exists in the counts array
         if (isset($codefileCounts[$codefile])) {
             $codefileCounts[$codefile]++;
@@ -494,8 +422,7 @@ public function getFilesByDossierr(int $id, DossierRepository $dossierRepository
                         if (file_exists($filePath)) {
                 unlink($filePath);
             }
-           
-   
+    
             // Remove the file from the database
             $entityManager->remove($file);
         }
@@ -543,7 +470,6 @@ public function getDossierName(int $id, DossierRepository $dossierRepository): J
                 $file->setStatus(false);
                 $file->setDate(new \DateTime());
                 $entityManager->flush();
-        
                 return new JsonResponse(['message' => 'File status updated successfully', 'dossier' => $dossier], 200);
             } else {
                 return new JsonResponse(['error' => 'You are not authorized to update this file'], 403);
@@ -579,6 +505,7 @@ public function archiverfile(int $id, EntityManagerInterface $entityManager, Mai
     $entityManager->flush();
 
     /*
+
     // Send email to current user
     $email = (new Email())
         ->from('sabriskandar5@gmail.com')
@@ -590,6 +517,7 @@ public function archiverfile(int $id, EntityManagerInterface $entityManager, Mai
         <p>L\'équipe de support</p>');
         
     $mailer->send($email);
+
     */
 
     return new JsonResponse(['message' => 'dossier status updated to false']);
